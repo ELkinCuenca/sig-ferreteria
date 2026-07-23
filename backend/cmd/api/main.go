@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/shopspring/decimal"
+
 	"sigefer.local/backend/internal/config"
 	"sigefer.local/backend/internal/database"
 	"sigefer.local/backend/internal/handlers"
@@ -22,6 +24,15 @@ func main() {
 		log.Fatalf(
 			"configuración inválida: %v",
 			err,
+		)
+	}
+
+	taxRate, err := decimal.NewFromString(cfg.TaxRate)
+	if err != nil ||
+		taxRate.IsNegative() ||
+		taxRate.GreaterThan(decimal.NewFromInt(1)) {
+		log.Fatalf(
+			"TAX_RATE debe ser un decimal entre 0 y 1",
 		)
 	}
 
@@ -54,6 +65,12 @@ func main() {
 	productHandler :=
 		handlers.NewProductHandler(productRepository)
 
+	saleRepository :=
+		repository.NewSaleRepository(db, taxRate)
+
+	saleHandler :=
+		handlers.NewSaleHandler(saleRepository)
+
 	router := http.NewServeMux()
 
 	router.HandleFunc(
@@ -66,12 +83,17 @@ func main() {
 		productHandler.List,
 	)
 
+	router.HandleFunc(
+		"/api/v1/ventas",
+		saleHandler.Create,
+	)
+
 	server := &http.Server{
 		Addr:              ":" + cfg.AppPort,
 		Handler:           router,
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      15 * time.Second,
+		ReadTimeout:       35 * time.Second,
+		WriteTimeout:      35 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
 

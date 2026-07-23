@@ -14,6 +14,7 @@ type Config struct {
 	DBService  string
 	DBUser     string
 	DBPassword string
+	TaxRate    string
 }
 
 // Load carga y valida las variables de entorno.
@@ -24,6 +25,7 @@ func Load() (Config, error) {
 		DBService:  valueOrDefault("DB_SERVICE", "FREEPDB1"),
 		DBUser:     os.Getenv("DB_USER"),
 		DBPassword: os.Getenv("DB_PASSWORD"),
+		TaxRate:    valueOrDefault("TAX_RATE", "0.15"),
 	}
 
 	dbPortText := valueOrDefault("DB_PORT", "1521")
