@@ -1,0 +1,28 @@
+# Credenciales
+.env
+.env.*
+!.env.example
+
+# Backend Go
+backend/bin/
+backend/coverage.out
+backend/tmp/
+*.test
+*.out
+
+# Frontend Angular
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+
+# Editores
+.vscode/
+.idea/
+
+# Registros
+*.log
+logs/
+
+# Sistemas operativos
+.DS_Store
+Thumbs.db

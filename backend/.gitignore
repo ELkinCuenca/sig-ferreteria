@@ -1,0 +1,17 @@
+# Credenciales y configuración privada
+.env
+.env.*
+!.env.example
+
+# Binarios
+bin/
+*.exe
+
+# Cobertura
+coverage.out
+
+# Logs
+*.log
+
+# Archivos temporales
+tmp/
