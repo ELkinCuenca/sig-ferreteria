@@ -13,6 +13,7 @@ import (
 	"sigefer.local/backend/internal/config"
 	"sigefer.local/backend/internal/database"
 	"sigefer.local/backend/internal/handlers"
+	"sigefer.local/backend/internal/repository"
 )
 
 func main() {
@@ -47,6 +48,12 @@ func main() {
 		}
 	}()
 
+	productRepository :=
+		repository.NewProductRepository(db)
+
+	productHandler :=
+		handlers.NewProductHandler(productRepository)
+
 	router := http.NewServeMux()
 
 	router.HandleFunc(
@@ -54,12 +61,17 @@ func main() {
 		handlers.Health(db),
 	)
 
+	router.HandleFunc(
+		"/api/v1/productos",
+		productHandler.List,
+	)
+
 	server := &http.Server{
 		Addr:              ":" + cfg.AppPort,
 		Handler:           router,
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
 
