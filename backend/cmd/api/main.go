@@ -71,6 +71,12 @@ func main() {
 	saleHandler :=
 		handlers.NewSaleHandler(saleRepository)
 
+	managementRepository :=
+		repository.NewManagementRepository(db)
+
+	managementHandler :=
+		handlers.NewManagementHandler(managementRepository)
+
 	router := http.NewServeMux()
 
 	router.HandleFunc(
@@ -84,8 +90,28 @@ func main() {
 	)
 
 	router.HandleFunc(
-		"/api/v1/ventas",
+		"POST /api/v1/ventas",
 		saleHandler.Create,
+	)
+
+	router.HandleFunc(
+		"GET /api/v1/ventas",
+		managementHandler.ListSales,
+	)
+
+	router.HandleFunc(
+		"GET /api/v1/ventas/{numero}",
+		managementHandler.GetSale,
+	)
+
+	router.HandleFunc(
+		"GET /api/v1/alertas-stock",
+		managementHandler.ListAlerts,
+	)
+
+	router.HandleFunc(
+		"GET /api/v1/dashboard/resumen",
+		managementHandler.Dashboard,
 	)
 
 	server := &http.Server{
