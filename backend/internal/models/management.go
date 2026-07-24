@@ -52,16 +52,18 @@ type SaleDetail struct {
 
 // StockAlert representa una alerta de inventario.
 type StockAlert struct {
-	IDAlerta        int64  `json:"id_alerta"`
-	CodigoProducto  string `json:"codigo_producto"`
-	Producto        string `json:"producto"`
-	TipoAlerta      string `json:"tipo_alerta"`
-	StockDetectado  string `json:"stock_detectado"`
-	StockMinimo     string `json:"stock_minimo"`
-	Estado          string `json:"estado"`
-	Mensaje         string `json:"mensaje"`
-	FechaGeneracion string `json:"fecha_generacion"`
-	FechaAtencion   string `json:"fecha_atencion,omitempty"`
+	IDAlerta            int64  `json:"id_alerta"`
+	CodigoProducto      string `json:"codigo_producto"`
+	Producto            string `json:"producto"`
+	TipoAlerta          string `json:"tipo_alerta"`
+	StockDetectado      string `json:"stock_detectado"`
+	StockMinimo         string `json:"stock_minimo"`
+	Estado              string `json:"estado"`
+	Mensaje             string `json:"mensaje"`
+	FechaGeneracion     string `json:"fecha_generacion"`
+	FechaAtencion       string `json:"fecha_atencion,omitempty"`
+	ObservacionAtencion string `json:"observacion_atencion,omitempty"`
+	IDUsuarioAtencion   *int64 `json:"id_usuario_atencion,omitempty"`
 }
 
 // StockAlertListResponse representa el listado de alertas.
@@ -85,4 +87,28 @@ type DashboardSummary struct {
 	ValorInventarioVenta    string `json:"valor_inventario_venta"`
 	MargenPotencial         string `json:"margen_potencial"`
 	CostoReposicionEstimado string `json:"costo_reposicion_estimado"`
+}
+
+// UpdateStockAlertRequest representa el cambio de estado de una alerta.
+type UpdateStockAlertRequest struct {
+	Estado      string `json:"estado"`
+	Observacion string `json:"observacion"`
+	IDUsuario   *int64 `json:"id_usuario,omitempty"`
+}
+
+// StockAlertUpdateResult representa una alerta después de ser procesada.
+type StockAlertUpdateResult struct {
+	Status              string `json:"status"`
+	IDAlerta            int64  `json:"id_alerta"`
+	CodigoProducto      string `json:"codigo_producto"`
+	Producto            string `json:"producto"`
+	TipoAlerta          string `json:"tipo_alerta"`
+	Estado              string `json:"estado"`
+	StockDetectado      string `json:"stock_detectado"`
+	StockMinimo         string `json:"stock_minimo"`
+	Mensaje             string `json:"mensaje,omitempty"`
+	ObservacionAtencion string `json:"observacion_atencion"`
+	FechaGeneracion     string `json:"fecha_generacion"`
+	FechaAtencion       string `json:"fecha_atencion"`
+	IDUsuarioAtencion   *int64 `json:"id_usuario_atencion,omitempty"`
 }

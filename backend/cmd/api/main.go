@@ -110,6 +110,11 @@ func main() {
 	)
 
 	router.HandleFunc(
+		"PATCH /api/v1/alertas-stock/{id}",
+		managementHandler.UpdateAlert,
+	)
+
+	router.HandleFunc(
 		"GET /api/v1/dashboard/resumen",
 		managementHandler.Dashboard,
 	)

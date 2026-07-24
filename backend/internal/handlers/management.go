@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -241,6 +243,167 @@ func (handler *ManagementHandler) Dashboard(
 	)
 	writer.WriteHeader(http.StatusOK)
 	writeJSON(writer, dashboard)
+}
+
+// UpdateAlert procesa PATCH /api/v1/alertas-stock/{id}.
+func (handler *ManagementHandler) UpdateAlert(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	alertIDText := request.PathValue("id")
+
+	alertID, err := strconv.ParseInt(
+		alertIDText,
+		10,
+		64,
+	)
+	if err != nil || alertID <= 0 {
+		writeManagementError(
+			writer,
+			http.StatusBadRequest,
+			"identificador de alerta inválido",
+		)
+		return
+	}
+
+	request.Body = http.MaxBytesReader(
+		writer,
+		request.Body,
+		64*1024,
+	)
+
+	decoder := json.NewDecoder(request.Body)
+	decoder.DisallowUnknownFields()
+
+	var payload models.UpdateStockAlertRequest
+
+	if err := decoder.Decode(&payload); err != nil {
+		writeManagementError(
+			writer,
+			http.StatusBadRequest,
+			"cuerpo JSON inválido",
+		)
+		return
+	}
+
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		writeManagementError(
+			writer,
+			http.StatusBadRequest,
+			"el cuerpo debe contener un único objeto JSON",
+		)
+		return
+	}
+
+	payload.Estado = strings.ToUpper(
+		strings.TrimSpace(payload.Estado),
+	)
+
+	payload.Observacion = strings.TrimSpace(
+		payload.Observacion,
+	)
+
+	if payload.Estado != "ATENDIDA" &&
+		payload.Estado != "DESCARTADA" {
+		writeManagementError(
+			writer,
+			http.StatusBadRequest,
+			"estado debe ser ATENDIDA o DESCARTADA",
+		)
+		return
+	}
+
+	observationLength := len(
+		[]rune(payload.Observacion),
+	)
+
+	if observationLength < 5 ||
+		observationLength > 500 {
+		writeManagementError(
+			writer,
+			http.StatusBadRequest,
+			"observacion debe contener entre 5 y 500 caracteres",
+		)
+		return
+	}
+
+	if payload.IDUsuario != nil &&
+		*payload.IDUsuario <= 0 {
+		writeManagementError(
+			writer,
+			http.StatusBadRequest,
+			"id_usuario debe ser un número positivo",
+		)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(
+		request.Context(),
+		10*time.Second,
+	)
+	defer cancel()
+
+	alert, err := handler.repository.UpdateStockAlert(
+		ctx,
+		alertID,
+		payload,
+	)
+
+	switch {
+	case errors.Is(
+		err,
+		repository.ErrStockAlertNotFound,
+	):
+		writeManagementError(
+			writer,
+			http.StatusNotFound,
+			"alerta de stock no encontrada",
+		)
+		return
+
+	case errors.Is(
+		err,
+		repository.ErrStockAlertAlreadyClosed,
+	):
+		writeManagementError(
+			writer,
+			http.StatusConflict,
+			"la alerta ya fue atendida o descartada",
+		)
+		return
+
+	case errors.Is(
+		err,
+		repository.ErrStockAlertUserNotFound,
+	):
+		writeManagementError(
+			writer,
+			http.StatusBadRequest,
+			"usuario responsable no encontrado",
+		)
+		return
+
+	case err != nil:
+		log.Printf(
+			"error actualizando alerta %d: %v",
+			alertID,
+			err,
+		)
+
+		writeManagementError(
+			writer,
+			http.StatusInternalServerError,
+			"no fue posible actualizar la alerta",
+		)
+		return
+	}
+
+	writer.Header().Set(
+		"Content-Type",
+		"application/json; charset=utf-8",
+	)
+	writer.WriteHeader(http.StatusOK)
+	writeJSON(writer, alert)
 }
 
 func parseLimit(request *http.Request) (int, error) {

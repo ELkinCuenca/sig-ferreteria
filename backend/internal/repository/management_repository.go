@@ -344,7 +344,10 @@ func (repository *ManagementRepository) ListStockAlerts(
 			TO_CHAR(
 				a.FECHA_ATENCION,
 				'YYYY-MM-DD"T"HH24:MI:SS'
-			)
+			),
+
+			a.OBSERVACION_ATENCION,
+			a.ID_USUARIO_ATENCION
 
 		FROM ALERTA_STOCK a
 
@@ -394,6 +397,8 @@ func (repository *ManagementRepository) ListStockAlerts(
 			minimumStock  float64
 			message       sql.NullString
 			attendedAt    sql.NullString
+			observation   sql.NullString
+			userID        sql.NullInt64
 		)
 
 		err := rows.Scan(
@@ -407,6 +412,8 @@ func (repository *ManagementRepository) ListStockAlerts(
 			&message,
 			&alert.FechaGeneracion,
 			&attendedAt,
+			&observation,
+			&userID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf(
@@ -427,6 +434,16 @@ func (repository *ManagementRepository) ListStockAlerts(
 
 		if attendedAt.Valid {
 			alert.FechaAtencion = attendedAt.String
+		}
+
+		if observation.Valid {
+			alert.ObservacionAtencion =
+				observation.String
+		}
+
+		if userID.Valid {
+			value := userID.Int64
+			alert.IDUsuarioAtencion = &value
 		}
 
 		alerts = append(alerts, alert)
@@ -604,6 +621,242 @@ func (repository *ManagementRepository) Dashboard(
 		formatMoney(replenishmentCost)
 
 	return dashboard, nil
+}
+
+// ErrStockAlertNotFound indica que una alerta no existe.
+var ErrStockAlertNotFound = errors.New(
+	"alerta de stock no encontrada",
+)
+
+// ErrStockAlertAlreadyClosed indica que una alerta ya fue procesada.
+var ErrStockAlertAlreadyClosed = errors.New(
+	"la alerta ya fue atendida o descartada",
+)
+
+// ErrStockAlertUserNotFound indica que el usuario responsable no existe.
+var ErrStockAlertUserNotFound = errors.New(
+	"usuario responsable no encontrado",
+)
+
+// UpdateStockAlert atiende o descarta una alerta en una transacción.
+func (repository *ManagementRepository) UpdateStockAlert(
+	ctx context.Context,
+	alertID int64,
+	request models.UpdateStockAlertRequest,
+) (models.StockAlertUpdateResult, error) {
+	tx, err := repository.db.BeginTx(ctx, nil)
+	if err != nil {
+		return models.StockAlertUpdateResult{}, fmt.Errorf(
+			"no se pudo iniciar la transacción: %w",
+			err,
+		)
+	}
+
+	committed := false
+
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	const lockQuery = `
+		SELECT ESTADO
+		FROM ALERTA_STOCK
+		WHERE ID_ALERTA = :1
+		FOR UPDATE
+	`
+
+	var currentStatus string
+
+	err = tx.QueryRowContext(
+		ctx,
+		lockQuery,
+		alertID,
+	).Scan(&currentStatus)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return models.StockAlertUpdateResult{},
+			ErrStockAlertNotFound
+	}
+
+	if err != nil {
+		return models.StockAlertUpdateResult{}, fmt.Errorf(
+			"no se pudo bloquear la alerta: %w",
+			err,
+		)
+	}
+
+	if currentStatus != "PENDIENTE" {
+		return models.StockAlertUpdateResult{},
+			ErrStockAlertAlreadyClosed
+	}
+
+	var userValue any
+
+	if request.IDUsuario != nil {
+		const userQuery = `
+			SELECT COUNT(*)
+			FROM USUARIO
+			WHERE ID_USUARIO = :1
+		`
+
+		var userCount int64
+
+		err = tx.QueryRowContext(
+			ctx,
+			userQuery,
+			*request.IDUsuario,
+		).Scan(&userCount)
+		if err != nil {
+			return models.StockAlertUpdateResult{}, fmt.Errorf(
+				"no se pudo validar el usuario: %w",
+				err,
+			)
+		}
+
+		if userCount == 0 {
+			return models.StockAlertUpdateResult{},
+				ErrStockAlertUserNotFound
+		}
+
+		userValue = *request.IDUsuario
+	}
+
+	const updateQuery = `
+		UPDATE ALERTA_STOCK
+		SET
+			ESTADO = :1,
+			OBSERVACION_ATENCION = :2,
+			ID_USUARIO_ATENCION = :3,
+			FECHA_ATENCION = CAST(
+				SYSTIMESTAMP AT TIME ZONE '-05:00'
+				AS TIMESTAMP
+			),
+			FECHA_ACTUALIZACION = CAST(
+				SYSTIMESTAMP AT TIME ZONE '-05:00'
+				AS TIMESTAMP
+			)
+		WHERE ID_ALERTA = :4
+		  AND ESTADO = 'PENDIENTE'
+	`
+
+	result, err := tx.ExecContext(
+		ctx,
+		updateQuery,
+		request.Estado,
+		request.Observacion,
+		userValue,
+		alertID,
+	)
+	if err != nil {
+		return models.StockAlertUpdateResult{}, fmt.Errorf(
+			"no se pudo actualizar la alerta: %w",
+			err,
+		)
+	}
+
+	affectedRows, err := result.RowsAffected()
+	if err != nil {
+		return models.StockAlertUpdateResult{}, fmt.Errorf(
+			"no se pudo verificar la actualización: %w",
+			err,
+		)
+	}
+
+	if affectedRows != 1 {
+		return models.StockAlertUpdateResult{},
+			ErrStockAlertAlreadyClosed
+	}
+
+	const resultQuery = `
+		SELECT
+			a.ID_ALERTA,
+			p.CODIGO,
+			p.NOMBRE,
+			a.TIPO_ALERTA,
+			a.ESTADO,
+			a.STOCK_DETECTADO,
+			a.STOCK_MINIMO,
+			a.MENSAJE,
+			a.OBSERVACION_ATENCION,
+
+			TO_CHAR(
+				a.FECHA_GENERACION,
+				'YYYY-MM-DD"T"HH24:MI:SS'
+			),
+
+			TO_CHAR(
+				a.FECHA_ATENCION,
+				'YYYY-MM-DD"T"HH24:MI:SS'
+			),
+
+			a.ID_USUARIO_ATENCION
+
+		FROM ALERTA_STOCK a
+
+		INNER JOIN PRODUCTO p
+			ON p.ID_PRODUCTO = a.ID_PRODUCTO
+
+		WHERE a.ID_ALERTA = :1
+	`
+
+	var (
+		alert         models.StockAlertUpdateResult
+		detectedStock float64
+		minimumStock  float64
+		message       sql.NullString
+		userID        sql.NullInt64
+	)
+
+	err = tx.QueryRowContext(
+		ctx,
+		resultQuery,
+		alertID,
+	).Scan(
+		&alert.IDAlerta,
+		&alert.CodigoProducto,
+		&alert.Producto,
+		&alert.TipoAlerta,
+		&alert.Estado,
+		&detectedStock,
+		&minimumStock,
+		&message,
+		&alert.ObservacionAtencion,
+		&alert.FechaGeneracion,
+		&alert.FechaAtencion,
+		&userID,
+	)
+	if err != nil {
+		return models.StockAlertUpdateResult{}, fmt.Errorf(
+			"no se pudo consultar la alerta actualizada: %w",
+			err,
+		)
+	}
+
+	alert.Status = "ok"
+	alert.StockDetectado = formatQuantity(detectedStock)
+	alert.StockMinimo = formatQuantity(minimumStock)
+
+	if message.Valid {
+		alert.Mensaje = message.String
+	}
+
+	if userID.Valid {
+		value := userID.Int64
+		alert.IDUsuarioAtencion = &value
+	}
+
+	if err := tx.Commit(); err != nil {
+		return models.StockAlertUpdateResult{}, fmt.Errorf(
+			"no se pudo confirmar la transacción: %w",
+			err,
+		)
+	}
+
+	committed = true
+
+	return alert, nil
 }
 
 func formatMoney(value float64) string {
