@@ -523,7 +523,7 @@ func nextSaleNumber(
 	const query = `
 		SELECT
 			'VTA-' ||
-			TO_CHAR(SYSTIMESTAMP, 'YYYYMMDD') ||
+			TO_CHAR(SYSTIMESTAMP AT TIME ZONE '-05:00', 'YYYYMMDD') ||
 			'-' ||
 			LPAD(SEQ_NUMERO_VENTA.NEXTVAL, 8, '0')
 		FROM DUAL
