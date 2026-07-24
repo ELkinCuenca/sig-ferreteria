@@ -15,6 +15,7 @@ import (
 	"sigefer.local/backend/internal/config"
 	"sigefer.local/backend/internal/database"
 	"sigefer.local/backend/internal/handlers"
+	"sigefer.local/backend/internal/middleware"
 	"sigefer.local/backend/internal/repository"
 )
 
@@ -65,6 +66,12 @@ func main() {
 	productHandler :=
 		handlers.NewProductHandler(productRepository)
 
+	clientRepository :=
+		repository.NewClientRepository(db)
+
+	clientHandler :=
+		handlers.NewClientHandler(clientRepository)
+
 	saleRepository :=
 		repository.NewSaleRepository(db, taxRate)
 
@@ -87,6 +94,11 @@ func main() {
 	router.HandleFunc(
 		"/api/v1/productos",
 		productHandler.List,
+	)
+
+	router.HandleFunc(
+		"GET /api/v1/clientes",
+		clientHandler.List,
 	)
 
 	router.HandleFunc(
@@ -121,7 +133,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:              ":" + cfg.AppPort,
-		Handler:           router,
+		Handler:           middleware.RejectCorruptUnicode(router),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       35 * time.Second,
 		WriteTimeout:      35 * time.Second,
