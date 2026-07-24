@@ -1,0 +1,133 @@
+<section class="detail-page">
+  <a routerLink="/ventas" class="back-link"> ← Regresar al historial </a>
+
+  @if (loading()) {
+    <div class="loading-state">Consultando información de la venta...</div>
+  } @else if (errorMessage()) {
+    <div class="error-message" role="alert">
+      {{ errorMessage() }}
+    </div>
+  } @else if (sale(); as currentSale) {
+    <header class="detail-heading">
+      <div>
+        <p class="eyebrow">Comprobante de venta</p>
+        <h1>{{ currentSale.numero_venta }}</h1>
+        <p>
+          {{ currentSale.fecha_venta | date: 'fullDate' }}
+          —
+          {{ currentSale.fecha_venta | date: 'HH:mm' }}
+        </p>
+      </div>
+
+      <span class="status-badge">
+        {{ currentSale.estado }}
+      </span>
+    </header>
+
+    <div class="information-grid">
+      <article>
+        <span>Cliente</span>
+        <strong>{{ currentSale.cliente }}</strong>
+        <small>
+          {{ currentSale.identificacion_cliente }}
+        </small>
+      </article>
+
+      <article>
+        <span>Método de pago</span>
+        <strong>{{ currentSale.metodo_pago }}</strong>
+      </article>
+
+      <article>
+        <span>Total de la venta</span>
+        <strong>
+          {{ currentSale.total | currency: 'USD' : 'symbol' : '1.2-2' }}
+        </strong>
+      </article>
+    </div>
+
+    <article class="detail-panel">
+      <div class="panel-heading">
+        <h2>Productos vendidos</h2>
+        <span>{{ currentSale.items.length }} registros</span>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Producto</th>
+              <th>Cantidad</th>
+              <th>Precio</th>
+              <th>Descuento</th>
+              <th>Subtotal</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            @for (item of currentSale.items; track item.codigo_producto) {
+              <tr>
+                <td>{{ item.codigo_producto }}</td>
+                <td>
+                  <strong>{{ item.nombre_producto }}</strong>
+                </td>
+                <td>
+                  {{ item.cantidad | number: '1.0-3' }}
+                </td>
+                <td>
+                  {{ item.precio_unitario | currency: 'USD' : 'symbol' : '1.2-2' }}
+                </td>
+                <td>
+                  {{ item.descuento | currency: 'USD' : 'symbol' : '1.2-2' }}
+                </td>
+                <td>
+                  <strong>
+                    {{ item.subtotal_linea | currency: 'USD' : 'symbol' : '1.2-2' }}
+                  </strong>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <section class="totals-panel">
+      <div>
+        <span>Subtotal</span>
+        <strong>
+          {{ currentSale.subtotal | currency: 'USD' : 'symbol' : '1.2-2' }}
+        </strong>
+      </div>
+
+      <div>
+        <span>Descuento</span>
+        <strong>
+          {{ currentSale.descuento | currency: 'USD' : 'symbol' : '1.2-2' }}
+        </strong>
+      </div>
+
+      <div>
+        <span>IVA</span>
+        <strong>
+          {{ currentSale.impuesto | currency: 'USD' : 'symbol' : '1.2-2' }}
+        </strong>
+      </div>
+
+      <div class="total-row">
+        <span>Total</span>
+        <strong>
+          {{ currentSale.total | currency: 'USD' : 'symbol' : '1.2-2' }}
+        </strong>
+      </div>
+    </section>
+
+    @if (currentSale.observacion) {
+      <article class="observation">
+        <span>Observación</span>
+        <p>{{ currentSale.observacion }}</p>
+      </article>
+    }
+  }
+</section>

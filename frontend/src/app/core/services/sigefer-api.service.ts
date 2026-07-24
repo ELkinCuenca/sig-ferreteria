@@ -1,10 +1,12 @@
-import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import {
   DashboardSummary,
   ProductListResponse,
+  SaleDetail,
+  SaleListResponse,
   StockAlertListResponse,
 } from '../models/sigefer.models';
 
@@ -20,10 +22,30 @@ export class SigeferApiService {
   }
 
   getLowStockProducts(): Observable<ProductListResponse> {
-    return this.http.get<ProductListResponse>(`${this.baseUrl}/productos?stock_bajo=true`);
+    return this.http.get<ProductListResponse>(`${this.baseUrl}/productos`, {
+      params: {
+        stock_bajo: true,
+      },
+    });
   }
 
   getPendingAlerts(): Observable<StockAlertListResponse> {
-    return this.http.get<StockAlertListResponse>(`${this.baseUrl}/alertas-stock?estado=PENDIENTE`);
+    return this.http.get<StockAlertListResponse>(`${this.baseUrl}/alertas-stock`, {
+      params: {
+        estado: 'PENDIENTE',
+      },
+    });
+  }
+
+  getSales(limit = 50): Observable<SaleListResponse> {
+    return this.http.get<SaleListResponse>(`${this.baseUrl}/ventas`, {
+      params: {
+        limite: limit,
+      },
+    });
+  }
+
+  getSaleByNumber(saleNumber: string): Observable<SaleDetail> {
+    return this.http.get<SaleDetail>(`${this.baseUrl}/ventas/${encodeURIComponent(saleNumber)}`);
   }
 }

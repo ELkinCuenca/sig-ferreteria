@@ -1,0 +1,106 @@
+<section class="sales-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">Gestión comercial</p>
+      <h1>Historial de ventas</h1>
+      <p class="subtitle">Consulta las transacciones registradas en SIGEFER.</p>
+    </div>
+
+    <button type="button" class="refresh-button" [disabled]="loading()" (click)="loadSales()">
+      <span aria-hidden="true">↻</span>
+      {{ loading() ? 'Actualizando...' : 'Actualizar' }}
+    </button>
+  </header>
+
+  <section class="summary-card">
+    <div>
+      <span>Ventas registradas</span>
+      <strong>{{ sales().length }}</strong>
+    </div>
+
+    <div>
+      <span>Ventas completadas</span>
+      <strong>{{ completedSalesCount() }}</strong>
+    </div>
+  </section>
+
+  @if (errorMessage()) {
+    <div class="error-message" role="alert">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <article class="sales-panel">
+    @if (loading()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Consultando historial de ventas...</p>
+      </div>
+    } @else if (sales().length === 0) {
+      <div class="empty-state">No existen ventas registradas.</div>
+    } @else {
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Número</th>
+              <th>Fecha</th>
+              <th>Cliente</th>
+              <th>Pago</th>
+              <th>Productos</th>
+              <th>Total</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+
+          <tbody>
+            @for (sale of sales(); track sale.id_venta) {
+              <tr>
+                <td>
+                  <strong class="sale-number">
+                    {{ sale.numero_venta }}
+                  </strong>
+                </td>
+
+                <td>
+                  {{ sale.fecha_venta | date: 'dd/MM/yyyy HH:mm' }}
+                </td>
+
+                <td>{{ sale.cliente }}</td>
+
+                <td>
+                  <span class="payment-badge">
+                    {{ sale.metodo_pago }}
+                  </span>
+                </td>
+
+                <td>
+                  {{ sale.total_items }}
+                </td>
+
+                <td>
+                  <strong>
+                    {{ sale.total | currency: 'USD' : 'symbol' : '1.2-2' }}
+                  </strong>
+                </td>
+
+                <td>
+                  <span class="status-badge" [class]="statusClass(sale.estado)">
+                    {{ sale.estado }}
+                  </span>
+                </td>
+
+                <td>
+                  <a class="detail-link" [routerLink]="['/ventas', sale.numero_venta]">
+                    Ver detalle
+                  </a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </article>
+</section>

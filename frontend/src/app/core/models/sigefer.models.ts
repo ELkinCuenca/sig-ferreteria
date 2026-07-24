@@ -54,3 +54,95 @@ export interface StockAlertListResponse {
   filtro_estado?: string;
   alertas: StockAlert[];
 }
+
+export interface SaleSummary {
+  id_venta: number;
+  numero_venta: string;
+  cliente: string;
+  fecha_venta: string;
+  subtotal: string;
+  descuento: string;
+  impuesto: string;
+  total: string;
+  metodo_pago: string;
+  estado: string;
+  total_items: number;
+}
+
+export interface SaleListResponse {
+  status: string;
+  total: number;
+  ventas: SaleSummary[];
+}
+
+export interface SaleDetailItem {
+  codigo_producto: string;
+  nombre_producto: string;
+  cantidad: string;
+  precio_unitario: string;
+  descuento: string;
+  subtotal_linea: string;
+}
+
+export interface SaleDetail {
+  status: string;
+  id_venta: number;
+  numero_venta: string;
+  cliente: string;
+  identificacion_cliente: string;
+  fecha_venta: string;
+  subtotal: string;
+  descuento: string;
+  impuesto: string;
+  total: string;
+  metodo_pago: string;
+  estado: string;
+  observacion: string;
+  items: SaleDetailItem[];
+}
+
+export interface SaleSummary {
+  id_venta: number;
+  numero_venta: string;
+  cliente: string;
+  fecha_venta: string;
+  subtotal: string;
+  descuento: string;
+  impuesto: string;
+  total: string;
+  metodo_pago: string;
+  estado: string;
+  total_items: number;
+}
+
+export interface SaleListResponse {
+  status: string;
+  total: number;
+  ventas: SaleSummary[];
+}
+
+export interface SaleDetailItem {
+  codigo_producto: string;
+  nombre_producto: string;
+  cantidad: string;
+  precio_unitario: string;
+  descuento: string;
+  subtotal_linea: string;
+}
+
+export interface SaleDetail {
+  status: string;
+  id_venta: number;
+  numero_venta: string;
+  cliente: string;
+  identificacion_cliente: string;
+  fecha_venta: string;
+  subtotal: string;
+  descuento: string;
+  impuesto: string;
+  total: string;
+  metodo_pago: string;
+  estado: string;
+  observacion: string;
+  items: SaleDetailItem[];
+}
