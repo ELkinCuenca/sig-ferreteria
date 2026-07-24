@@ -21,12 +21,22 @@ export class SigeferApiService {
     return this.http.get<DashboardSummary>(`${this.baseUrl}/dashboard/resumen`);
   }
 
+  getProducts(stockLowOnly = false): Observable<ProductListResponse> {
+    const url = `${this.baseUrl}/productos`;
+
+    if (stockLowOnly) {
+      return this.http.get<ProductListResponse>(url, {
+        params: {
+          stock_bajo: 'true',
+        },
+      });
+    }
+
+    return this.http.get<ProductListResponse>(url);
+  }
+
   getLowStockProducts(): Observable<ProductListResponse> {
-    return this.http.get<ProductListResponse>(`${this.baseUrl}/productos`, {
-      params: {
-        stock_bajo: true,
-      },
-    });
+    return this.getProducts(true);
   }
 
   getPendingAlerts(): Observable<StockAlertListResponse> {

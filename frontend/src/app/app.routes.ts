@@ -8,6 +8,12 @@ export const routes: Routes = [
     title: 'Panel gerencial | SIGEFER',
   },
   {
+    path: 'productos',
+    loadComponent: () =>
+      import('./pages/products/products.component').then((module) => module.ProductsComponent),
+    title: 'Productos e inventario | SIGEFER',
+  },
+  {
     path: 'ventas',
     loadComponent: () =>
       import('./pages/sales/sales.component').then((module) => module.SalesComponent),

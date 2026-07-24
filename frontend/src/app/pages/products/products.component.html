@@ -1,0 +1,270 @@
+<section class="products-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">Gestión de inventario</p>
+      <h1>Productos</h1>
+      <p class="subtitle">Consulta existencias, precios y niveles de reposición.</p>
+    </div>
+
+    <button type="button" class="refresh-button" [disabled]="loading()" (click)="loadProducts()">
+      <span aria-hidden="true">↻</span>
+      {{ loading() ? 'Actualizando...' : 'Actualizar' }}
+    </button>
+  </header>
+
+  <section class="summary-grid">
+    <article>
+      <span>Productos registrados</span>
+      <strong>{{ products().length }}</strong>
+    </article>
+
+    <article>
+      <span>Unidades en inventario</span>
+      <strong>{{ totalUnits() | number: '1.0-3' }}</strong>
+    </article>
+
+    <article class="warning-summary">
+      <span>Requieren reposición</span>
+      <strong>{{ lowStockCount() }}</strong>
+    </article>
+
+    <article>
+      <span>Inventario a costo</span>
+      <strong>
+        {{ inventoryCost() | currency: 'USD' : 'symbol' : '1.2-2' }}
+      </strong>
+    </article>
+  </section>
+
+  <section class="filters-panel">
+    <label>
+      <span>Buscar producto</span>
+
+      <input
+        type="search"
+        placeholder="Código, nombre o categoría"
+        [value]="searchTerm()"
+        (input)="updateSearch($event)"
+      />
+    </label>
+
+    <label>
+      <span>Estado de inventario</span>
+
+      <select [value]="statusFilter()" (change)="updateStatus($event)">
+        <option value="TODOS">Todos</option>
+
+        @for (status of statuses(); track status) {
+          <option [value]="status">
+            {{ status }}
+          </option>
+        }
+      </select>
+    </label>
+
+    <button type="button" class="clear-button" (click)="clearFilters()">Limpiar filtros</button>
+  </section>
+
+  @if (errorMessage()) {
+    <div class="error-message" role="alert">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <article class="products-panel">
+    <div class="panel-heading">
+      <div>
+        <span>Catálogo</span>
+        <h2>Inventario disponible</h2>
+      </div>
+
+      <strong> {{ filteredProducts().length }} resultados </strong>
+    </div>
+
+    @if (loading()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Consultando productos...</p>
+      </div>
+    } @else if (filteredProducts().length === 0) {
+      <div class="empty-state">No existen productos para los filtros seleccionados.</div>
+    } @else {
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Categoría</th>
+              <th>Precio</th>
+              <th>Existencia</th>
+              <th>Disponible</th>
+              <th>Mínimo</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+
+          <tbody>
+            @for (product of filteredProducts(); track product.id_producto) {
+              <tr>
+                <td>
+                  <strong>{{ product.nombre }}</strong>
+                  <span class="product-code">
+                    {{ product.codigo }}
+                  </span>
+                </td>
+
+                <td>{{ product.categoria }}</td>
+
+                <td>
+                  {{ product.precio_venta | currency: 'USD' : 'symbol' : '1.2-2' }}
+                </td>
+
+                <td>
+                  {{ product.stock_actual | number: '1.0-3' }}
+                </td>
+
+                <td>
+                  <div class="stock-cell">
+                    <strong>
+                      {{ product.stock_disponible | number: '1.0-3' }}
+                    </strong>
+
+                    <div class="stock-track">
+                      <span
+                        [class]="stockClass(product)"
+                        [style.width.%]="stockPercentage(product)"
+                      ></span>
+                    </div>
+                  </div>
+                </td>
+
+                <td>
+                  {{ product.stock_minimo | number: '1.0-3' }}
+                </td>
+
+                <td>
+                  <span class="status-badge" [class]="statusClass(product.estado_stock)">
+                    {{ product.estado_stock }}
+                  </span>
+                </td>
+
+                <td>
+                  <button type="button" class="detail-button" (click)="openProduct(product)">
+                    Ver detalle
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </article>
+</section>
+
+@if (selectedProduct(); as product) {
+  <div class="drawer-backdrop" role="presentation" (click)="closeProduct()">
+    <aside
+      class="product-drawer"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="product-detail-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <p class="eyebrow">Detalle de producto</p>
+          <h2 id="product-detail-title">
+            {{ product.nombre }}
+          </h2>
+          <span>{{ product.codigo }}</span>
+        </div>
+
+        <button
+          type="button"
+          class="close-button"
+          aria-label="Cerrar detalle"
+          (click)="closeProduct()"
+        >
+          ×
+        </button>
+      </header>
+
+      <div class="product-status">
+        <span class="status-badge" [class]="statusClass(product.estado_stock)">
+          {{ product.estado_stock }}
+        </span>
+      </div>
+
+      <dl>
+        <div>
+          <dt>Categoría</dt>
+          <dd>{{ product.categoria }}</dd>
+        </div>
+
+        <div>
+          <dt>Unidad de medida</dt>
+          <dd>{{ product.unidad_medida }}</dd>
+        </div>
+
+        <div>
+          <dt>Precio de compra</dt>
+          <dd>
+            {{ product.precio_compra | currency: 'USD' : 'symbol' : '1.2-2' }}
+          </dd>
+        </div>
+
+        <div>
+          <dt>Precio de venta</dt>
+          <dd>
+            {{ product.precio_venta | currency: 'USD' : 'symbol' : '1.2-2' }}
+          </dd>
+        </div>
+
+        <div>
+          <dt>Margen unitario</dt>
+          <dd>
+            {{ product.margen_unitario | currency: 'USD' : 'symbol' : '1.2-2' }}
+          </dd>
+        </div>
+
+        <div>
+          <dt>Stock actual</dt>
+          <dd>
+            {{ product.stock_actual | number: '1.0-3' }}
+          </dd>
+        </div>
+
+        <div>
+          <dt>Stock reservado</dt>
+          <dd>
+            {{ product.stock_reservado | number: '1.0-3' }}
+          </dd>
+        </div>
+
+        <div>
+          <dt>Stock disponible</dt>
+          <dd>
+            {{ product.stock_disponible | number: '1.0-3' }}
+          </dd>
+        </div>
+
+        <div>
+          <dt>Stock mínimo</dt>
+          <dd>
+            {{ product.stock_minimo | number: '1.0-3' }}
+          </dd>
+        </div>
+      </dl>
+
+      <section class="valuation">
+        <span>Valor actual a costo</span>
+
+        <strong>
+          {{ product.stock_actual * product.precio_compra | currency: 'USD' : 'symbol' : '1.2-2' }}
+        </strong>
+      </section>
+    </aside>
+  </div>
+}
