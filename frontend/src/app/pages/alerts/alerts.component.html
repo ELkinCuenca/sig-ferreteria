@@ -1,0 +1,308 @@
+<section class="alerts-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">Control de inventario</p>
+
+      <h1>Alertas de stock</h1>
+
+      <p class="subtitle">Supervisa niveles críticos y registra las acciones tomadas.</p>
+    </div>
+
+    <button type="button" class="refresh-button" [disabled]="loading()" (click)="loadAlerts()">
+      <span aria-hidden="true">↻</span>
+
+      {{ loading() ? 'Actualizando...' : 'Actualizar' }}
+    </button>
+  </header>
+
+  <section class="summary-grid">
+    <article class="summary-card">
+      <span>Total de alertas</span>
+      <strong>{{ alerts().length }}</strong>
+    </article>
+
+    <article class="summary-card pending">
+      <span>Pendientes</span>
+      <strong>{{ pendingCount() }}</strong>
+    </article>
+
+    <article class="summary-card attended">
+      <span>Atendidas</span>
+      <strong>{{ attendedCount() }}</strong>
+    </article>
+
+    <article class="summary-card discarded">
+      <span>Descartadas</span>
+      <strong>{{ discardedCount() }}</strong>
+    </article>
+  </section>
+
+  @if (successMessage()) {
+    <div class="message success-message" role="status">
+      {{ successMessage() }}
+    </div>
+  }
+
+  @if (errorMessage() && !selectedAlert()) {
+    <div class="message error-message" role="alert">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <section class="alerts-panel">
+    <div class="panel-heading">
+      <div>
+        <span>Seguimiento</span>
+        <h2>Registro de alertas</h2>
+      </div>
+
+      <strong>
+        {{ filteredAlerts().length }}
+        resultados
+      </strong>
+    </div>
+
+    <nav class="filter-tabs" aria-label="Filtrar alertas">
+      <button
+        type="button"
+        [class.active]="selectedFilter() === 'TODAS'"
+        (click)="selectFilter('TODAS')"
+      >
+        Todas
+      </button>
+
+      <button
+        type="button"
+        [class.active]="selectedFilter() === 'PENDIENTE'"
+        (click)="selectFilter('PENDIENTE')"
+      >
+        Pendientes
+      </button>
+
+      <button
+        type="button"
+        [class.active]="selectedFilter() === 'ATENDIDA'"
+        (click)="selectFilter('ATENDIDA')"
+      >
+        Atendidas
+      </button>
+
+      <button
+        type="button"
+        [class.active]="selectedFilter() === 'DESCARTADA'"
+        (click)="selectFilter('DESCARTADA')"
+      >
+        Descartadas
+      </button>
+    </nav>
+
+    @if (loading()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+
+        <p>Consultando alertas...</p>
+      </div>
+    } @else if (filteredAlerts().length === 0) {
+      <div class="empty-state">No existen alertas en el estado seleccionado.</div>
+    } @else {
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Tipo</th>
+              <th>Stock</th>
+              <th>Mínimo</th>
+              <th>Generación</th>
+              <th>Estado</th>
+              <th>Atención</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            @for (alert of filteredAlerts(); track alert.id_alerta) {
+              <tr>
+                <td>
+                  <strong>
+                    {{ alert.producto }}
+                  </strong>
+
+                  <span class="product-code">
+                    {{ alert.codigo_producto }}
+                  </span>
+                </td>
+
+                <td>
+                  <span class="type-badge" [class.no-stock]="alert.tipo_alerta === 'SIN_STOCK'">
+                    {{ typeLabel(alert.tipo_alerta) }}
+                  </span>
+                </td>
+
+                <td>
+                  <strong [class.critical-stock]="alert.stock_detectado === '0.000'">
+                    {{ alert.stock_detectado | number: '1.0-3' }}
+                  </strong>
+                </td>
+
+                <td>
+                  {{ alert.stock_minimo | number: '1.0-3' }}
+                </td>
+
+                <td>
+                  {{ alert.fecha_generacion | date: 'dd/MM/yyyy HH:mm' }}
+                </td>
+
+                <td>
+                  <span [ngClass]="['status-badge', statusClass(alert.estado)]">
+                    {{ alert.estado }}
+                  </span>
+                </td>
+
+                <td>
+                  @if (alert.fecha_atencion) {
+                    <span class="attended-date">
+                      {{ alert.fecha_atencion | date: 'dd/MM/yyyy HH:mm' }}
+                    </span>
+
+                    @if (alert.observacion_atencion) {
+                      <span class="observation" [title]="alert.observacion_atencion">
+                        {{ alert.observacion_atencion }}
+                      </span>
+                    }
+                  } @else {
+                    <span class="not-attended"> Sin atender </span>
+                  }
+                </td>
+
+                <td>
+                  @if (alert.estado === 'PENDIENTE') {
+                    <div class="actions">
+                      <button
+                        type="button"
+                        class="action-button attend"
+                        (click)="openAction(alert, 'ATENDIDA')"
+                      >
+                        Atender
+                      </button>
+
+                      <button
+                        type="button"
+                        class="action-button discard"
+                        (click)="openAction(alert, 'DESCARTADA')"
+                      >
+                        Descartar
+                      </button>
+                    </div>
+                  } @else {
+                    <span class="completed-label"> Procesada </span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</section>
+
+@if (selectedAlert(); as alert) {
+  <div class="modal-backdrop" role="presentation" (click)="closeAction()">
+    <section
+      class="action-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="alert-action-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <p class="eyebrow">Gestión de alerta</p>
+
+          <h2 id="alert-action-title">
+            {{ selectedAction() === 'ATENDIDA' ? 'Atender alerta' : 'Descartar alerta' }}
+          </h2>
+        </div>
+
+        <button
+          type="button"
+          class="close-button"
+          aria-label="Cerrar"
+          [disabled]="processing()"
+          (click)="closeAction()"
+        >
+          ×
+        </button>
+      </header>
+
+      <div class="alert-reference">
+        <strong>{{ alert.producto }}</strong>
+        <span>{{ alert.codigo_producto }}</span>
+      </div>
+
+      <dl>
+        <div>
+          <dt>Stock detectado</dt>
+          <dd>
+            {{ alert.stock_detectado | number: '1.0-3' }}
+          </dd>
+        </div>
+
+        <div>
+          <dt>Stock mínimo</dt>
+          <dd>
+            {{ alert.stock_minimo | number: '1.0-3' }}
+          </dd>
+        </div>
+      </dl>
+
+      <label class="observation-field">
+        <span> Observación de atención </span>
+
+        <textarea
+          rows="5"
+          maxlength="500"
+          placeholder="Describa la acción realizada..."
+          [value]="observation()"
+          [disabled]="processing()"
+          (input)="updateObservation($event)"
+        ></textarea>
+
+        <small> {{ observation().length }}/500 caracteres. Mínimo 5. </small>
+      </label>
+
+      @if (errorMessage() && selectedAlert()) {
+        <div class="message error-message" role="alert">
+          {{ errorMessage() }}
+        </div>
+      }
+
+      <footer>
+        <button
+          type="button"
+          class="cancel-button"
+          [disabled]="processing()"
+          (click)="closeAction()"
+        >
+          Cancelar
+        </button>
+
+        <button
+          type="button"
+          class="confirm-button"
+          [class.discard]="selectedAction() === 'DESCARTADA'"
+          [disabled]="!canSubmit()"
+          (click)="submitAction()"
+        >
+          @if (processing()) {
+            Procesando...
+          } @else {
+            Confirmar
+            {{ selectedAction() === 'ATENDIDA' ? 'atención' : 'descarte' }}
+          }
+        </button>
+      </footer>
+    </section>
+  </div>
+}

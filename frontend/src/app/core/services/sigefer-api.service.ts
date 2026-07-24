@@ -3,11 +3,15 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import {
+  AlertManagementState,
   DashboardSummary,
+  ManagedStockAlertListResponse,
   ProductListResponse,
   SaleDetail,
   SaleListResponse,
   StockAlertListResponse,
+  UpdateStockAlertPayload,
+  UpdateStockAlertResponse,
 } from '../models/sigefer.models';
 
 @Injectable({
@@ -45,6 +49,24 @@ export class SigeferApiService {
         estado: 'PENDIENTE',
       },
     });
+  }
+
+  getManagedStockAlerts(state: AlertManagementState): Observable<ManagedStockAlertListResponse> {
+    return this.http.get<ManagedStockAlertListResponse>(`${this.baseUrl}/alertas-stock`, {
+      params: {
+        estado: state,
+      },
+    });
+  }
+
+  updateStockAlert(
+    alertId: number,
+    payload: UpdateStockAlertPayload,
+  ): Observable<UpdateStockAlertResponse> {
+    return this.http.patch<UpdateStockAlertResponse>(
+      `${this.baseUrl}/alertas-stock/${alertId}`,
+      payload,
+    );
   }
 
   getSales(limit = 50): Observable<SaleListResponse> {

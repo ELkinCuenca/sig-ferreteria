@@ -146,3 +146,37 @@ export interface SaleDetail {
   observacion: string;
   items: SaleDetailItem[];
 }
+
+export type AlertManagementState = 'PENDIENTE' | 'ATENDIDA' | 'DESCARTADA';
+
+export interface ManagedStockAlert {
+  id_alerta: number;
+  codigo_producto: string;
+  producto: string;
+  tipo_alerta: string;
+  stock_detectado: string;
+  stock_minimo: string;
+  estado: AlertManagementState;
+  mensaje: string;
+  fecha_generacion: string;
+  fecha_atencion?: string;
+  observacion_atencion?: string;
+  id_usuario_atencion?: number;
+}
+
+export interface ManagedStockAlertListResponse {
+  status: string;
+  total: number;
+  filtro_estado: AlertManagementState;
+  alertas: ManagedStockAlert[];
+}
+
+export interface UpdateStockAlertPayload {
+  estado: Exclude<AlertManagementState, 'PENDIENTE'>;
+  observacion: string;
+  id_usuario?: number;
+}
+
+export interface UpdateStockAlertResponse extends ManagedStockAlert {
+  status: string;
+}

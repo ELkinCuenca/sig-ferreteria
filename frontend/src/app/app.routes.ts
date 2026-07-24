@@ -14,6 +14,12 @@ export const routes: Routes = [
     title: 'Productos e inventario | SIGEFER',
   },
   {
+    path: 'alertas',
+    loadComponent: () =>
+      import('./pages/alerts/alerts.component').then((module) => module.AlertsComponent),
+    title: 'Alertas de stock | SIGEFER',
+  },
+  {
     path: 'ventas',
     loadComponent: () =>
       import('./pages/sales/sales.component').then((module) => module.SalesComponent),
