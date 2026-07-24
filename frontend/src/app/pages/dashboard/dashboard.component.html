@@ -1,0 +1,234 @@
+<section class="dashboard">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">Sistema de Información Gerencial</p>
+      <h1>Panel general</h1>
+      <p class="subtitle">Indicadores de ventas, inventario y reposición en tiempo real.</p>
+    </div>
+
+    <button type="button" class="refresh-button" [disabled]="loading" (click)="loadData()">
+      <span aria-hidden="true">↻</span>
+      {{ loading ? 'Actualizando...' : 'Actualizar datos' }}
+    </button>
+  </div>
+
+  @if (errorMessage) {
+    <div class="error-message" role="alert">
+      <strong>No se pudieron cargar los datos.</strong>
+      <span>{{ errorMessage }}</span>
+    </div>
+  }
+
+  @if (loading && !dashboard) {
+    <div class="loading-panel">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Consultando indicadores de SIGEFER...</p>
+    </div>
+  }
+
+  @if (dashboard) {
+    <div class="kpi-grid">
+      <article class="kpi-card">
+        <div class="kpi-icon">V</div>
+        <div>
+          <span class="kpi-label">Ventas de hoy</span>
+          <strong>{{ dashboard.ventas_hoy }}</strong>
+          <small>Transacciones completadas</small>
+        </div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-icon">＄</div>
+        <div>
+          <span class="kpi-label">Ingresos de hoy</span>
+          <strong>
+            {{ dashboard.ingresos_hoy | currency: 'USD' : 'symbol' : '1.2-2' }}
+          </strong>
+          <small>Valor facturado</small>
+        </div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-icon">U</div>
+        <div>
+          <span class="kpi-label">Unidades vendidas</span>
+          <strong>
+            {{ dashboard.unidades_vendidas_hoy | number: '1.0-3' }}
+          </strong>
+          <small>Productos despachados</small>
+        </div>
+      </article>
+
+      <article class="kpi-card warning-card">
+        <div class="kpi-icon">!</div>
+        <div>
+          <span class="kpi-label">Productos por reponer</span>
+          <strong>{{ dashboard.productos_reposicion }}</strong>
+          <small>Stock menor o igual al mínimo</small>
+        </div>
+      </article>
+
+      <article class="kpi-card alert-card">
+        <div class="kpi-icon">A</div>
+        <div>
+          <span class="kpi-label">Alertas pendientes</span>
+          <strong>{{ dashboard.alertas_pendientes }}</strong>
+          <small>Requieren atención</small>
+        </div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-icon">I</div>
+        <div>
+          <span class="kpi-label">Inventario a costo</span>
+          <strong>
+            {{ dashboard.valor_inventario_costo | currency: 'USD' : 'symbol' : '1.2-2' }}
+          </strong>
+          <small>Capital invertido</small>
+        </div>
+      </article>
+    </div>
+
+    <div class="summary-grid">
+      <article class="summary-card">
+        <span>Valor potencial de venta</span>
+        <strong>
+          {{ dashboard.valor_inventario_venta | currency: 'USD' : 'symbol' : '1.2-2' }}
+        </strong>
+      </article>
+
+      <article class="summary-card">
+        <span>Margen potencial</span>
+        <strong>
+          {{ dashboard.margen_potencial | currency: 'USD' : 'symbol' : '1.2-2' }}
+        </strong>
+      </article>
+
+      <article class="summary-card">
+        <span>Costo estimado de reposición</span>
+        <strong>
+          {{ dashboard.costo_reposicion_estimado | currency: 'USD' : 'symbol' : '1.2-2' }}
+        </strong>
+      </article>
+    </div>
+
+    <div class="content-grid">
+      <article class="panel products-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="panel-kicker">Inventario</span>
+            <h2>Productos que requieren reposición</h2>
+          </div>
+
+          <span class="count-badge">{{ products.length }}</span>
+        </div>
+
+        @if (products.length === 0) {
+          <div class="empty-state">No existen productos por debajo del stock mínimo.</div>
+        } @else {
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Categoría</th>
+                  <th>Disponible</th>
+                  <th>Mínimo</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                @for (product of products; track product.id_producto) {
+                  <tr>
+                    <td>
+                      <strong>{{ product.nombre }}</strong>
+                      <span class="product-code">{{ product.codigo }}</span>
+                    </td>
+
+                    <td>{{ product.categoria }}</td>
+
+                    <td>
+                      <div class="stock-value">
+                        {{ product.stock_disponible | number: '1.0-3' }}
+                        {{ product.unidad_medida }}
+                      </div>
+
+                      <div class="stock-track">
+                        <span
+                          [class]="stockSeverity(product)"
+                          [style.width.%]="stockPercentage(product)"
+                        ></span>
+                      </div>
+                    </td>
+
+                    <td>
+                      {{ product.stock_minimo | number: '1.0-3' }}
+                    </td>
+
+                    <td>
+                      <span class="status-badge" [class.critical]="product.stock_disponible <= 0">
+                        {{ product.estado_stock }}
+                      </span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </article>
+
+      <article class="panel alerts-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="panel-kicker">Control</span>
+            <h2>Alertas pendientes</h2>
+          </div>
+
+          <span class="count-badge alert-count">
+            {{ alerts.length }}
+          </span>
+        </div>
+
+        @if (alerts.length === 0) {
+          <div class="empty-state">No existen alertas pendientes.</div>
+        } @else {
+          <div class="alert-list">
+            @for (alert of alerts; track alert.id_alerta) {
+              <article class="alert-item">
+                <div class="alert-symbol" aria-hidden="true">!</div>
+
+                <div class="alert-content">
+                  <div class="alert-title">
+                    <strong>{{ alert.producto }}</strong>
+                    <span>{{ alert.tipo_alerta }}</span>
+                  </div>
+
+                  <p>{{ alert.mensaje }}</p>
+
+                  <div class="alert-meta">
+                    <span>{{ alert.codigo_producto }}</span>
+                    <span>
+                      Detectado:
+                      {{ alert.stock_detectado | number: '1.0-3' }}
+                    </span>
+                    <span>
+                      Mínimo:
+                      {{ alert.stock_minimo | number: '1.0-3' }}
+                    </span>
+                  </div>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </article>
+    </div>
+
+    <p class="generated-at">
+      Última actualización:
+      {{ dashboard.fecha_generacion | date: 'medium' }}
+    </p>
+  }
+</section>

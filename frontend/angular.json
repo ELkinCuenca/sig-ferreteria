@@ -67,7 +67,13 @@
               "buildTarget": "frontend:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "allowedHosts": [
+              "sig-app-web",
+              "192.168.67.129"
+            ]
+          }
         },
         "test": {
           "builder": "@angular/build:unit-test"
