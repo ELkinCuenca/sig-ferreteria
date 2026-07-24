@@ -449,7 +449,7 @@ func (repository *ManagementRepository) Dashboard(
 	const query = `
 		SELECT
 			TO_CHAR(
-				SYSTIMESTAMP,
+				SYSTIMESTAMP AT TIME ZONE '-05:00',
 				'YYYY-MM-DD"T"HH24:MI:SS TZH:TZM'
 			),
 
@@ -457,8 +457,10 @@ func (repository *ManagementRepository) Dashboard(
 				SELECT COUNT(*)
 				FROM VENTA
 				WHERE ESTADO = 'COMPLETADA'
-				  AND FECHA_VENTA >= TRUNC(SYSDATE)
-				  AND FECHA_VENTA < TRUNC(SYSDATE) + 1
+				  AND CAST(FECHA_VENTA AS DATE) - (5 / 24)
+				      >= TRUNC(SYSDATE - (5 / 24))
+				  AND CAST(FECHA_VENTA AS DATE) - (5 / 24)
+				      < TRUNC(SYSDATE - (5 / 24)) + 1
 			),
 
 			NVL(
@@ -466,8 +468,10 @@ func (repository *ManagementRepository) Dashboard(
 					SELECT SUM(TOTAL)
 					FROM VENTA
 					WHERE ESTADO = 'COMPLETADA'
-					  AND FECHA_VENTA >= TRUNC(SYSDATE)
-					  AND FECHA_VENTA < TRUNC(SYSDATE) + 1
+					  AND CAST(FECHA_VENTA AS DATE) - (5 / 24)
+					      >= TRUNC(SYSDATE - (5 / 24))
+					  AND CAST(FECHA_VENTA AS DATE) - (5 / 24)
+					      < TRUNC(SYSDATE - (5 / 24)) + 1
 				),
 				0
 			),
@@ -479,8 +483,10 @@ func (repository *ManagementRepository) Dashboard(
 					INNER JOIN VENTA v
 						ON v.ID_VENTA = d.ID_VENTA
 					WHERE v.ESTADO = 'COMPLETADA'
-					  AND v.FECHA_VENTA >= TRUNC(SYSDATE)
-					  AND v.FECHA_VENTA < TRUNC(SYSDATE) + 1
+					  AND CAST(v.FECHA_VENTA AS DATE) - (5 / 24)
+					      >= TRUNC(SYSDATE - (5 / 24))
+					  AND CAST(v.FECHA_VENTA AS DATE) - (5 / 24)
+					      < TRUNC(SYSDATE - (5 / 24)) + 1
 				),
 				0
 			),
