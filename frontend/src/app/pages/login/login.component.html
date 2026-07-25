@@ -1,0 +1,102 @@
+<section class="login-page">
+  <div class="login-visual">
+    <div class="visual-content">
+      <div class="brand-mark">S</div>
+
+      <p class="eyebrow">Sistema de Información Gerencial</p>
+
+      <h1>
+        Ferretería<br />
+        El Tornillo de Oro
+      </h1>
+
+      <p class="description">
+        Plataforma distribuida para controlar ventas, inventario, alertas e indicadores gerenciales.
+      </p>
+
+      <div class="architecture">
+        <span>Angular</span>
+        <strong>→</strong>
+        <span>Go REST</span>
+        <strong>→</strong>
+        <span>Oracle</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="login-form-column">
+    <section class="login-card">
+      <header>
+        <p class="eyebrow">Acceso seguro</p>
+
+        <h2>Iniciar sesión</h2>
+
+        <p>Ingrese sus credenciales para acceder a SIGEFER.</p>
+      </header>
+
+      @if (checkingSession()) {
+        <div class="checking-session">Verificando sesión...</div>
+      } @else {
+        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <label>
+            <span> Usuario o correo electrónico </span>
+
+            <input
+              type="text"
+              formControlName="usuario"
+              autocomplete="username"
+              maxlength="150"
+              placeholder="administrador"
+            />
+
+            @if (form.controls.usuario.touched && form.controls.usuario.invalid) {
+              <small class="field-error"> Ingrese el usuario o correo. </small>
+            }
+          </label>
+
+          <label>
+            <span>Contraseña</span>
+
+            <div class="password-field">
+              <input
+                [type]="showPassword() ? 'text' : 'password'"
+                formControlName="contrasena"
+                autocomplete="current-password"
+                maxlength="72"
+                placeholder="Ingrese su contraseña"
+              />
+
+              <button
+                type="button"
+                class="password-toggle"
+                [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                (click)="togglePassword()"
+              >
+                {{ showPassword() ? 'Ocultar' : 'Mostrar' }}
+              </button>
+            </div>
+
+            @if (form.controls.contrasena.touched && form.controls.contrasena.invalid) {
+              <small class="field-error"> Ingrese la contraseña. </small>
+            }
+          </label>
+
+          @if (errorMessage()) {
+            <div class="login-error" role="alert">
+              {{ errorMessage() }}
+            </div>
+          }
+
+          <button type="submit" class="login-button" [disabled]="form.invalid || submitting()">
+            {{ submitting() ? 'Validando acceso...' : 'Ingresar a SIGEFER' }}
+          </button>
+        </form>
+      }
+
+      <footer>
+        <span class="status-dot"></span>
+        Acceso protegido mediante sesión autenticada
+      </footer>
+    </section>
+  </div>
+</section>

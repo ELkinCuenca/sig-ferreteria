@@ -1,81 +1,128 @@
-<div class="app-shell">
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-mark">S</div>
+@if (session.isAuthenticated()) {
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">S</div>
 
-      <div>
-        <strong>SIGEFER</strong>
-        <span>El Tornillo de Oro</span>
+        <div>
+          <strong>SIGEFER</strong>
+          <span>El Tornillo de Oro</span>
+        </div>
       </div>
+
+      <nav aria-label="Navegación principal">
+        <p class="nav-heading">Gestión</p>
+
+        @if (session.hasAnyRole(['ADMINISTRADOR', 'GERENTE'])) {
+          <a
+            routerLink="/"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{
+              exact: true,
+            }"
+          >
+            <span class="nav-icon">▦</span>
+            Panel gerencial
+          </a>
+        }
+
+        @if (session.hasAnyRole(['ADMINISTRADOR', 'BODEGUERO', 'VENDEDOR'])) {
+          <a routerLink="/productos" routerLinkActive="active">
+            <span class="nav-icon">P</span>
+            Productos
+          </a>
+        }
+
+        @if (session.hasAnyRole(['ADMINISTRADOR', 'VENDEDOR'])) {
+          <a routerLink="/ventas/nueva" routerLinkActive="active">
+            <span class="nav-icon">+</span>
+            Nueva venta
+          </a>
+        }
+
+        @if (session.hasAnyRole(['ADMINISTRADOR', 'VENDEDOR', 'GERENTE'])) {
+          <a routerLink="/ventas" routerLinkActive="active">
+            <span class="nav-icon">V</span>
+            Ventas
+          </a>
+        }
+
+        @if (session.hasAnyRole(['ADMINISTRADOR', 'BODEGUERO'])) {
+          <a routerLink="/alertas" routerLinkActive="active">
+            <span class="nav-icon">A</span>
+            Alertas
+          </a>
+        }
+
+        <p class="nav-heading secondary-heading">Sistema</p>
+
+        <a class="disabled-link" aria-disabled="true">
+          <span class="nav-icon">B</span>
+          BPM
+        </a>
+
+        <a class="disabled-link" aria-disabled="true">
+          <span class="nav-icon">I</span>
+          IoT
+        </a>
+      </nav>
+
+      <div class="server-card">
+        <span class="server-dot"></span>
+
+        <div>
+          <strong> Arquitectura distribuida </strong>
+
+          <small> CentOS → Go → Oracle </small>
+        </div>
+      </div>
+    </aside>
+
+    <div class="content-shell">
+      <header class="topbar">
+        <div>
+          <strong> Ferretería El Tornillo de Oro </strong>
+
+          <span> Información para la toma de decisiones </span>
+        </div>
+
+        @if (session.user(); as user) {
+          <div class="user-menu">
+            <div class="user-avatar">
+              {{ user.nombres.charAt(0) }}{{ user.apellidos.charAt(0) }}
+            </div>
+
+            <div class="user-information">
+              <strong>
+                {{ session.fullName() }}
+              </strong>
+
+              <span>
+                {{ user.rol }}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              class="logout-button"
+              [disabled]="loggingOut()"
+              (click)="logout()"
+            >
+              {{ loggingOut() ? 'Cerrando...' : 'Salir' }}
+            </button>
+          </div>
+        }
+      </header>
+
+      <main>
+        <router-outlet />
+      </main>
+
+      <footer>SIGEFER © {{ currentYear }} — Sistema de Información Gerencial</footer>
     </div>
-
-    <nav aria-label="Navegación principal">
-      <p class="nav-heading">Gestión</p>
-
-      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-        <span class="nav-icon">▦</span>
-        Panel gerencial
-      </a>
-
-      <a routerLink="/productos" routerLinkActive="active">
-        <span class="nav-icon">P</span>
-        Productos
-      </a>
-
-      <a routerLink="/ventas/nueva" routerLinkActive="active">
-        <span class="nav-icon">+</span>
-        Nueva venta
-      </a>
-
-      <a routerLink="/ventas" routerLinkActive="active">
-        <span class="nav-icon">V</span>
-        Ventas
-      </a>
-
-      <a routerLink="/alertas" routerLinkActive="active">
-        <span class="nav-icon">A</span>
-        Alertas
-      </a>
-
-      <p class="nav-heading secondary-heading">Sistema</p>
-
-      <a class="disabled-link" aria-disabled="true">
-        <span class="nav-icon">B</span>
-        BPM
-      </a>
-
-      <a class="disabled-link" aria-disabled="true">
-        <span class="nav-icon">I</span>
-        IoT
-      </a>
-    </nav>
-
-    <div class="server-card">
-      <span class="server-dot"></span>
-      <div>
-        <strong>Arquitectura distribuida</strong>
-        <small>CentOS → Go → Oracle</small>
-      </div>
-    </div>
-  </aside>
-
-  <div class="content-shell">
-    <header class="topbar">
-      <div>
-        <strong>Ferretería El Tornillo de Oro</strong>
-        <span>Información para la toma de decisiones</span>
-      </div>
-
-      <div class="connection-status">
-        <span></span>
-        Servicios conectados
-      </div>
-    </header>
-
-    <main>
-      <router-outlet />
-    </main>
-
-    <footer>SIGEFER © {{ currentYear }} — Sistema de Información Gerencial</footer>
   </div>
-</div>
+} @else {
+  <div class="auth-shell">
+    <router-outlet />
+  </div>
+}

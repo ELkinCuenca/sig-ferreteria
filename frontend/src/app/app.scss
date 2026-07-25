@@ -209,3 +209,78 @@ footer {
     padding: 1rem;
   }
 }
+
+/* =========================================================
+   SESIÓN Y PERFIL
+   ========================================================= */
+
+.auth-shell {
+  min-height: 100vh;
+}
+
+.user-menu {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.user-avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.user-information {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.user-information strong {
+  font-size: 0.78rem;
+}
+
+.user-information span {
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.logout-button {
+  min-height: 36px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.logout-button:hover {
+  border-color: #c36c6c;
+  color: #9c2e2e;
+}
+
+.logout-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 720px) {
+  .user-information {
+    display: none;
+  }
+
+  .logout-button {
+    padding: 0 0.55rem;
+  }
+}
