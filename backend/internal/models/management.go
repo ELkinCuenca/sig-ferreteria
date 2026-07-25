@@ -93,7 +93,7 @@ type DashboardSummary struct {
 type UpdateStockAlertRequest struct {
 	Estado      string `json:"estado"`
 	Observacion string `json:"observacion"`
-	IDUsuario   *int64 `json:"id_usuario,omitempty"`
+	IDUsuario   *int64 `json:"-"`
 }
 
 // StockAlertUpdateResult representa una alerta después de ser procesada.

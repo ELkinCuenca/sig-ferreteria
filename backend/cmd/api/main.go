@@ -97,6 +97,50 @@ func main() {
 	requireAuthentication :=
 		middleware.RequireAuthentication(authRepository)
 
+	requireDashboardAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+			"GERENTE",
+		)
+
+	requireProductAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+			"BODEGUERO",
+			"VENDEDOR",
+		)
+
+	requireClientAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+			"VENDEDOR",
+		)
+
+	requireSaleWriteAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+			"VENDEDOR",
+		)
+
+	requireSaleReadAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+			"VENDEDOR",
+			"GERENTE",
+		)
+
+	requireAlertAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+			"BODEGUERO",
+		)
+
 	router := http.NewServeMux()
 
 	router.HandleFunc(
@@ -127,44 +171,76 @@ func main() {
 		),
 	)
 
-	router.HandleFunc(
-		"/api/v1/productos",
-		productHandler.List,
+	router.Handle(
+		"GET /api/v1/productos",
+		requireProductAccess(
+			http.HandlerFunc(
+				productHandler.List,
+			),
+		),
 	)
 
-	router.HandleFunc(
+	router.Handle(
 		"GET /api/v1/clientes",
-		clientHandler.List,
+		requireClientAccess(
+			http.HandlerFunc(
+				clientHandler.List,
+			),
+		),
 	)
 
-	router.HandleFunc(
+	router.Handle(
 		"POST /api/v1/ventas",
-		saleHandler.Create,
+		requireSaleWriteAccess(
+			http.HandlerFunc(
+				saleHandler.Create,
+			),
+		),
 	)
 
-	router.HandleFunc(
+	router.Handle(
 		"GET /api/v1/ventas",
-		managementHandler.ListSales,
+		requireSaleReadAccess(
+			http.HandlerFunc(
+				managementHandler.ListSales,
+			),
+		),
 	)
 
-	router.HandleFunc(
+	router.Handle(
 		"GET /api/v1/ventas/{numero}",
-		managementHandler.GetSale,
+		requireSaleReadAccess(
+			http.HandlerFunc(
+				managementHandler.GetSale,
+			),
+		),
 	)
 
-	router.HandleFunc(
+	router.Handle(
 		"GET /api/v1/alertas-stock",
-		managementHandler.ListAlerts,
+		requireAlertAccess(
+			http.HandlerFunc(
+				managementHandler.ListAlerts,
+			),
+		),
 	)
 
-	router.HandleFunc(
+	router.Handle(
 		"PATCH /api/v1/alertas-stock/{id}",
-		managementHandler.UpdateAlert,
+		requireAlertAccess(
+			http.HandlerFunc(
+				managementHandler.UpdateAlert,
+			),
+		),
 	)
 
-	router.HandleFunc(
+	router.Handle(
 		"GET /api/v1/dashboard/resumen",
-		managementHandler.Dashboard,
+		requireDashboardAccess(
+			http.HandlerFunc(
+				managementHandler.Dashboard,
+			),
+		),
 	)
 
 	server := &http.Server{

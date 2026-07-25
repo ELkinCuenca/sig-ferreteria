@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"sigefer.local/backend/internal/middleware"
 	"sigefer.local/backend/internal/models"
 	"sigefer.local/backend/internal/repository"
 )
@@ -266,6 +267,20 @@ func (handler *ManagementHandler) UpdateAlert(
 		return
 	}
 
+	principal, authenticated :=
+		middleware.PrincipalFromContext(
+			request.Context(),
+		)
+
+	if !authenticated {
+		writeManagementError(
+			writer,
+			http.StatusUnauthorized,
+			"sesión autenticada no disponible",
+		)
+		return
+	}
+
 	request.Body = http.MaxBytesReader(
 		writer,
 		request.Body,
@@ -326,6 +341,11 @@ func (handler *ManagementHandler) UpdateAlert(
 		)
 		return
 	}
+
+	// El responsable se obtiene de la sesión,
+	// nunca del cuerpo enviado por Angular.
+	payload.IDUsuario =
+		&principal.IDUsuario
 
 	if payload.IDUsuario != nil &&
 		*payload.IDUsuario <= 0 {

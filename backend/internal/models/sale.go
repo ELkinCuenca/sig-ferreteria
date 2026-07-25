@@ -12,7 +12,7 @@ type SaleItemRequest struct {
 // SaleCreateRequest representa la solicitud de creación de una venta.
 type SaleCreateRequest struct {
 	IdentificacionCliente string            `json:"identificacion_cliente"`
-	IDUsuario             *int64            `json:"id_usuario,omitempty"`
+	IDUsuario             *int64            `json:"-"`
 	MetodoPago            string            `json:"metodo_pago"`
 	DescuentoGeneral      decimal.Decimal   `json:"descuento_general"`
 	Observacion           string            `json:"observacion,omitempty"`

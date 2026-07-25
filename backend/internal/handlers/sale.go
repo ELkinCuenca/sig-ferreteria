@@ -13,6 +13,7 @@ import (
 
 	"github.com/shopspring/decimal"
 
+	"sigefer.local/backend/internal/middleware"
 	"sigefer.local/backend/internal/models"
 	"sigefer.local/backend/internal/repository"
 )
@@ -54,6 +55,20 @@ func (handler *SaleHandler) Create(
 		return
 	}
 
+	principal, authenticated :=
+		middleware.PrincipalFromContext(
+			request.Context(),
+		)
+
+	if !authenticated {
+		writeSaleError(
+			writer,
+			http.StatusUnauthorized,
+			"sesión autenticada no disponible",
+		)
+		return
+	}
+
 	request.Body = http.MaxBytesReader(
 		writer,
 		request.Body,
@@ -85,6 +100,11 @@ func (handler *SaleHandler) Create(
 		)
 		return
 	}
+
+	// La identidad proviene exclusivamente
+	// de la sesión autenticada.
+	payload.IDUsuario =
+		&principal.IDUsuario
 
 	if message := validateSaleRequest(&payload); message != "" {
 		writeSaleError(
