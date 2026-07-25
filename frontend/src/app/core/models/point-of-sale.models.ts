@@ -26,7 +26,6 @@ export interface SaleItemPayload {
 
 export interface SaleCreatePayload {
   identificacion_cliente: string;
-  id_usuario?: number;
   metodo_pago: PaymentMethod;
   descuento_general: string;
   observacion?: string;

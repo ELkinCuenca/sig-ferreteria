@@ -174,7 +174,6 @@ export interface ManagedStockAlertListResponse {
 export interface UpdateStockAlertPayload {
   estado: Exclude<AlertManagementState, 'PENDIENTE'>;
   observacion: string;
-  id_usuario?: number;
 }
 
 export interface UpdateStockAlertResponse extends ManagedStockAlert {
