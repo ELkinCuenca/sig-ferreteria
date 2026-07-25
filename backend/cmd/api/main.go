@@ -84,11 +84,47 @@ func main() {
 	managementHandler :=
 		handlers.NewManagementHandler(managementRepository)
 
+	authRepository :=
+		repository.NewAuthRepository(
+			db,
+			cfg.SessionHours,
+			cfg.MaxLoginAttempts,
+		)
+
+	authHandler :=
+		handlers.NewAuthHandler(authRepository)
+
+	requireAuthentication :=
+		middleware.RequireAuthentication(authRepository)
+
 	router := http.NewServeMux()
 
 	router.HandleFunc(
 		"/api/v1/health",
 		handlers.Health(db),
+	)
+
+	router.HandleFunc(
+		"POST /api/v1/auth/login",
+		authHandler.Login,
+	)
+
+	router.Handle(
+		"GET /api/v1/auth/perfil",
+		requireAuthentication(
+			http.HandlerFunc(
+				authHandler.Profile,
+			),
+		),
+	)
+
+	router.Handle(
+		"POST /api/v1/auth/logout",
+		requireAuthentication(
+			http.HandlerFunc(
+				authHandler.Logout,
+			),
+		),
 	)
 
 	router.HandleFunc(

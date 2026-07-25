@@ -6,15 +6,18 @@ import (
 	"strconv"
 )
 
-// Config representa la configuración de la API y Oracle.
+// Config representa la configuración de la API,
+// Oracle y el sistema de autenticación.
 type Config struct {
-	AppPort    string
-	DBHost     string
-	DBPort     int
-	DBService  string
-	DBUser     string
-	DBPassword string
-	TaxRate    string
+	AppPort          string
+	DBHost           string
+	DBPort           int
+	DBService        string
+	DBUser           string
+	DBPassword       string
+	TaxRate          string
+	SessionHours     int
+	MaxLoginAttempts int
 }
 
 // Load carga y valida las variables de entorno.
@@ -28,17 +31,45 @@ func Load() (Config, error) {
 		TaxRate:    valueOrDefault("TAX_RATE", "0.15"),
 	}
 
-	dbPortText := valueOrDefault("DB_PORT", "1521")
-
-	dbPort, err := strconv.Atoi(dbPortText)
+	dbPort, err := positiveInteger(
+		"DB_PORT",
+		"1521",
+	)
 	if err != nil {
+		return Config{}, err
+	}
+
+	sessionHours, err := positiveInteger(
+		"SESSION_HOURS",
+		"12",
+	)
+	if err != nil {
+		return Config{}, err
+	}
+
+	maxAttempts, err := positiveInteger(
+		"MAX_LOGIN_ATTEMPTS",
+		"5",
+	)
+	if err != nil {
+		return Config{}, err
+	}
+
+	if sessionHours > 168 {
 		return Config{}, fmt.Errorf(
-			"DB_PORT debe contener un número válido: %w",
-			err,
+			"SESSION_HOURS no puede superar 168",
+		)
+	}
+
+	if maxAttempts > 20 {
+		return Config{}, fmt.Errorf(
+			"MAX_LOGIN_ATTEMPTS no puede superar 20",
 		)
 	}
 
 	cfg.DBPort = dbPort
+	cfg.SessionHours = sessionHours
+	cfg.MaxLoginAttempts = maxAttempts
 
 	if cfg.DBUser == "" {
 		return Config{}, fmt.Errorf(
@@ -55,8 +86,32 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
-func valueOrDefault(name, defaultValue string) string {
+func positiveInteger(
+	name string,
+	defaultValue string,
+) (int, error) {
+	text := valueOrDefault(
+		name,
+		defaultValue,
+	)
+
+	value, err := strconv.Atoi(text)
+	if err != nil || value <= 0 {
+		return 0, fmt.Errorf(
+			"%s debe contener un entero positivo",
+			name,
+		)
+	}
+
+	return value, nil
+}
+
+func valueOrDefault(
+	name string,
+	defaultValue string,
+) string {
 	value := os.Getenv(name)
+
 	if value == "" {
 		return defaultValue
 	}
