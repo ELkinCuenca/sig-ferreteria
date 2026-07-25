@@ -26,6 +26,12 @@ export const routes: Routes = [
     title: 'Historial de ventas | SIGEFER',
   },
   {
+    path: 'ventas/nueva',
+    loadComponent: () =>
+      import('./pages/new-sale/new-sale.component').then((module) => module.NewSaleComponent),
+    title: 'Registrar venta | SIGEFER',
+  },
+  {
     path: 'ventas/:numero',
     loadComponent: () =>
       import('./pages/sales/sale-detail.component').then((module) => module.SaleDetailComponent),

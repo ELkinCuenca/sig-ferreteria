@@ -1,0 +1,477 @@
+<section class="new-sale-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">Proceso comercial</p>
+      <h1>Registrar nueva venta</h1>
+
+      <p class="subtitle">Seleccione el cliente, agregue productos y confirme la transacción.</p>
+    </div>
+
+    <a routerLink="/ventas" class="history-link"> Ver historial </a>
+  </header>
+
+  @if (successMessage()) {
+    <div class="message success-message" role="status">
+      {{ successMessage() }}
+    </div>
+  }
+
+  @if (errorMessage()) {
+    <div class="message error-message" role="alert">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Cargando punto de venta...</p>
+    </div>
+  } @else {
+    <div class="sales-layout">
+      <div class="catalog-column">
+        <section class="panel client-panel">
+          <header class="panel-heading">
+            <div>
+              <span>Paso 1</span>
+              <h2>Seleccionar cliente</h2>
+            </div>
+
+            <strong>
+              {{ clients().length }}
+              disponibles
+            </strong>
+          </header>
+
+          <div class="search-box">
+            <input
+              type="search"
+              placeholder="Buscar por nombre o identificación"
+              [value]="clientSearch()"
+              (input)="updateClientSearch($event)"
+            />
+          </div>
+
+          <div class="client-list">
+            @for (client of filteredClients(); track client.id_cliente) {
+              <button
+                type="button"
+                class="client-card"
+                [class.selected]="selectedClientId() === client.id_cliente"
+                (click)="selectClient(client)"
+              >
+                <span class="selection-indicator"> </span>
+
+                <span class="client-information">
+                  <strong>
+                    {{ client.nombre_completo }}
+                  </strong>
+
+                  <small>
+                    {{ client.tipo_identificacion }}
+                    ·
+                    {{ client.identificacion }}
+                  </small>
+                </span>
+              </button>
+            } @empty {
+              <div class="empty-state compact">No se encontraron clientes.</div>
+            }
+          </div>
+        </section>
+
+        <section class="panel product-panel">
+          <header class="panel-heading">
+            <div>
+              <span>Paso 2</span>
+              <h2>Agregar productos</h2>
+            </div>
+
+            <strong>
+              {{ filteredProducts().length }}
+              resultados
+            </strong>
+          </header>
+
+          <div class="search-box">
+            <input
+              type="search"
+              placeholder="Código, producto o categoría"
+              [value]="productSearch()"
+              (input)="updateProductSearch($event)"
+            />
+          </div>
+
+          <div class="product-grid">
+            @for (product of filteredProducts(); track product.id_producto) {
+              <article
+                class="product-card"
+                [class.low-stock]="product.estado_stock === 'STOCK BAJO'"
+              >
+                <div class="product-heading">
+                  <div>
+                    <strong>
+                      {{ product.nombre }}
+                    </strong>
+
+                    <span>
+                      {{ product.codigo }}
+                    </span>
+                  </div>
+
+                  <span class="stock-status" [class.low]="product.estado_stock === 'STOCK BAJO'">
+                    {{ product.estado_stock }}
+                  </span>
+                </div>
+
+                <dl>
+                  <div>
+                    <dt>Precio</dt>
+                    <dd>
+                      {{ product.precio_venta | currency: 'USD' : 'symbol' : '1.2-2' }}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt>Disponible</dt>
+                    <dd>
+                      {{ product.stock_disponible | number: '1.0-3' }}
+                      {{ product.unidad_medida }}
+                    </dd>
+                  </div>
+                </dl>
+
+                <button
+                  type="button"
+                  class="add-product-button"
+                  [disabled]="product.stock_disponible <= 0 || productInCart(product.codigo)"
+                  (click)="addProduct(product)"
+                >
+                  @if (productInCart(product.codigo)) {
+                    Agregado
+                  } @else if (product.stock_disponible <= 0) {
+                    Sin existencias
+                  } @else {
+                    Agregar al carrito
+                  }
+                </button>
+              </article>
+            } @empty {
+              <div class="empty-state">No existen productos para la búsqueda realizada.</div>
+            }
+          </div>
+        </section>
+      </div>
+
+      <aside class="sale-column">
+        <section class="panel cart-panel">
+          <header class="panel-heading">
+            <div>
+              <span>Paso 3</span>
+              <h2>Detalle de venta</h2>
+            </div>
+
+            <strong>
+              {{ cart().length }}
+              productos
+            </strong>
+          </header>
+
+          @if (selectedClient(); as client) {
+            <div class="selected-client">
+              <span>Cliente seleccionado</span>
+
+              <strong>
+                {{ client.nombre_completo }}
+              </strong>
+
+              <small>
+                {{ client.identificacion }}
+              </small>
+            </div>
+          } @else {
+            <div class="selected-client missing">Seleccione un cliente.</div>
+          }
+
+          @if (cart().length === 0) {
+            <div class="empty-cart">
+              <span aria-hidden="true">🛒</span>
+              <p>El carrito está vacío.</p>
+            </div>
+          } @else {
+            <div class="cart-lines">
+              @for (line of cart(); track line.product.codigo) {
+                <article class="cart-line">
+                  <header>
+                    <div>
+                      <strong>
+                        {{ line.product.nombre }}
+                      </strong>
+
+                      <span>
+                        {{ line.product.codigo }}
+                        ·
+                        {{ line.product.precio_venta | currency: 'USD' : 'symbol' : '1.2-2' }}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      class="remove-button"
+                      aria-label="Eliminar producto"
+                      (click)="removeProduct(line.product.codigo)"
+                    >
+                      ×
+                    </button>
+                  </header>
+
+                  <div class="line-fields">
+                    <label>
+                      <span>Cantidad</span>
+
+                      <input
+                        type="number"
+                        min="0.001"
+                        step="0.001"
+                        [max]="line.product.stock_disponible"
+                        [value]="line.quantity"
+                        (input)="updateQuantity(line.product.codigo, $event)"
+                      />
+
+                      <small>
+                        Máximo:
+                        {{ line.product.stock_disponible | number: '1.0-3' }}
+                      </small>
+                    </label>
+
+                    <label>
+                      <span> Descuento USD </span>
+
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        [value]="line.discount"
+                        (input)="updateLineDiscount(line.product.codigo, $event)"
+                      />
+                    </label>
+                  </div>
+
+                  <footer>
+                    <span>Subtotal</span>
+
+                    <strong>
+                      {{ lineSubtotal(line) | currency: 'USD' : 'symbol' : '1.2-2' }}
+                    </strong>
+                  </footer>
+                </article>
+              }
+            </div>
+          }
+
+          <div class="sale-fields">
+            <label>
+              <span>Método de pago</span>
+
+              <select [value]="paymentMethod()" (change)="updatePaymentMethod($event)">
+                @for (method of paymentMethods; track method) {
+                  <option [value]="method">
+                    {{ method }}
+                  </option>
+                }
+              </select>
+            </label>
+
+            <label>
+              <span> Descuento general USD </span>
+
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                [value]="generalDiscount()"
+                (input)="updateGeneralDiscount($event)"
+              />
+            </label>
+
+            <label class="observation-field">
+              <span>Observación</span>
+
+              <textarea
+                rows="3"
+                maxlength="500"
+                placeholder="Información adicional de la venta"
+                [value]="observation()"
+                (input)="updateObservation($event)"
+              ></textarea>
+
+              <small> {{ observation().length }}/500 </small>
+            </label>
+          </div>
+
+          <dl class="totals">
+            <div>
+              <dt>Subtotal bruto</dt>
+              <dd>
+                {{ grossSubtotal() | currency: 'USD' : 'symbol' : '1.2-2' }}
+              </dd>
+            </div>
+
+            <div>
+              <dt>Descuentos por línea</dt>
+              <dd>
+                -
+                {{ lineDiscountTotal() | currency: 'USD' : 'symbol' : '1.2-2' }}
+              </dd>
+            </div>
+
+            <div>
+              <dt>Descuento general</dt>
+              <dd>
+                -
+                {{ generalDiscount() | currency: 'USD' : 'symbol' : '1.2-2' }}
+              </dd>
+            </div>
+
+            <div>
+              <dt>Base imponible</dt>
+              <dd>
+                {{ taxableSubtotal() | currency: 'USD' : 'symbol' : '1.2-2' }}
+              </dd>
+            </div>
+
+            <div>
+              <dt>IVA 15 %</dt>
+              <dd>
+                {{ tax() | currency: 'USD' : 'symbol' : '1.2-2' }}
+              </dd>
+            </div>
+
+            <div class="grand-total">
+              <dt>Total estimado</dt>
+              <dd>
+                {{ estimatedTotal() | currency: 'USD' : 'symbol' : '1.2-2' }}
+              </dd>
+            </div>
+          </dl>
+
+          @if (validationMessage()) {
+            <div class="validation-message">
+              {{ validationMessage() }}
+            </div>
+          }
+
+          <button
+            type="button"
+            class="submit-button"
+            [disabled]="!canSubmit()"
+            (click)="submitSale()"
+          >
+            {{ submitting() ? 'Registrando venta...' : 'Confirmar venta' }}
+          </button>
+        </section>
+      </aside>
+    </div>
+  }
+</section>
+
+@if (receipt(); as sale) {
+  <div class="receipt-backdrop" role="presentation">
+    <section class="receipt-modal" role="dialog" aria-modal="true" aria-labelledby="receipt-title">
+      <header>
+        <div>
+          <p class="eyebrow">Venta registrada</p>
+
+          <h2 id="receipt-title">
+            {{ sale.numero_venta }}
+          </h2>
+        </div>
+
+        <span class="completed-badge">
+          {{ sale.estado }}
+        </span>
+      </header>
+
+      <div class="receipt-summary">
+        <div>
+          <span>Método de pago</span>
+          <strong>
+            {{ sale.metodo_pago }}
+          </strong>
+        </div>
+
+        <div>
+          <span>Total confirmado</span>
+          <strong>
+            {{ sale.total | currency: 'USD' : 'symbol' : '1.2-2' }}
+          </strong>
+        </div>
+      </div>
+
+      <div class="receipt-items">
+        @for (item of sale.items; track item.codigo_producto) {
+          <div>
+            <span>
+              {{ item.nombre_producto }}
+              ×
+              {{ item.cantidad }}
+            </span>
+
+            <strong>
+              {{ item.subtotal_linea | currency: 'USD' : 'symbol' : '1.2-2' }}
+            </strong>
+          </div>
+        }
+      </div>
+
+      <dl class="receipt-totals">
+        <div>
+          <dt>Subtotal</dt>
+          <dd>
+            {{ sale.subtotal | currency: 'USD' : 'symbol' : '1.2-2' }}
+          </dd>
+        </div>
+
+        <div>
+          <dt>Descuento</dt>
+          <dd>
+            {{ sale.descuento | currency: 'USD' : 'symbol' : '1.2-2' }}
+          </dd>
+        </div>
+
+        <div>
+          <dt>IVA</dt>
+          <dd>
+            {{ sale.impuesto | currency: 'USD' : 'symbol' : '1.2-2' }}
+          </dd>
+        </div>
+
+        <div class="grand-total">
+          <dt>Total</dt>
+          <dd>
+            {{ sale.total | currency: 'USD' : 'symbol' : '1.2-2' }}
+          </dd>
+        </div>
+      </dl>
+
+      @if (sale.alertas_stock.length > 0) {
+        <section class="generated-alerts">
+          <strong> Alertas de inventario generadas </strong>
+
+          @for (alert of sale.alertas_stock; track alert.codigo_producto) {
+            <p>
+              {{ alert.codigo_producto }}:
+              {{ alert.tipo_alerta }}
+            </p>
+          }
+        </section>
+      }
+
+      <footer>
+        <a routerLink="/ventas" class="secondary-button"> Ver historial </a>
+
+        <button type="button" class="primary-button" (click)="closeReceipt()">Nueva venta</button>
+      </footer>
+    </section>
+  </div>
+}
