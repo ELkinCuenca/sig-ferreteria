@@ -37,6 +37,18 @@ export const routes: Routes = [
     title: 'Productos e inventario | SIGEFER',
   },
   {
+    path: 'inventario',
+    canActivate: [roleGuard],
+    data: {
+      roles: ['ADMINISTRADOR', 'BODEGUERO', 'GERENTE'],
+    },
+    loadComponent: () =>
+      import('./pages/inventory-management/inventory-management.component').then(
+        (module) => module.InventoryManagementComponent,
+      ),
+    title: 'Administración de inventario | SIGEFER',
+  },
+  {
     path: 'alertas',
     canActivate: [roleGuard],
     data: {

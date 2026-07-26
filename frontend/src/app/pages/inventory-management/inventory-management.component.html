@@ -1,0 +1,35 @@
+<section class="inventory-page">
+  <header>
+    <div>
+      <p class="eyebrow">Gestión transaccional</p>
+
+      <h1>Productos e inventario</h1>
+
+      <p>Administración del catálogo, ajustes de existencias e historial de movimientos.</p>
+    </div>
+
+    <button type="button" [disabled]="loading()" (click)="loadCategories()">
+      {{ loading() ? 'Actualizando...' : 'Actualizar' }}
+    </button>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="message-error" role="alert">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <article class="status-card">
+    <span> Categorías activas </span>
+
+    <strong>
+      {{ categories().length }}
+    </strong>
+
+    @if (loading()) {
+      <small> Consultando API... </small>
+    } @else {
+      <small> Conexión administrativa disponible </small>
+    }
+  </article>
+</section>
