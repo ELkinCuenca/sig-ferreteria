@@ -84,6 +84,12 @@ func main() {
 	managementHandler :=
 		handlers.NewManagementHandler(managementRepository)
 
+	bpmRepository :=
+		repository.NewBPMRepository(db)
+
+	bpmHandler :=
+		handlers.NewBPMHandler(bpmRepository)
+
 	authRepository :=
 		repository.NewAuthRepository(
 			db,
@@ -135,6 +141,21 @@ func main() {
 		)
 
 	requireAlertAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+			"BODEGUERO",
+		)
+
+	requireBPMReadAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+			"BODEGUERO",
+			"GERENTE",
+		)
+
+	requireBPMCreateAccess :=
 		middleware.RequireAuthentication(
 			authRepository,
 			"ADMINISTRADOR",
@@ -239,6 +260,51 @@ func main() {
 		requireDashboardAccess(
 			http.HandlerFunc(
 				managementHandler.Dashboard,
+			),
+		),
+	)
+
+	router.Handle(
+		"GET /api/v1/bpm/proveedores",
+		requireBPMReadAccess(
+			http.HandlerFunc(
+				bpmHandler.ListProviders,
+			),
+		),
+	)
+
+	router.Handle(
+		"GET /api/v1/bpm/reposiciones",
+		requireBPMReadAccess(
+			http.HandlerFunc(
+				bpmHandler.List,
+			),
+		),
+	)
+
+	router.Handle(
+		"GET /api/v1/bpm/reposiciones/{numero}",
+		requireBPMReadAccess(
+			http.HandlerFunc(
+				bpmHandler.Get,
+			),
+		),
+	)
+
+	router.Handle(
+		"POST /api/v1/bpm/reposiciones",
+		requireBPMCreateAccess(
+			http.HandlerFunc(
+				bpmHandler.Create,
+			),
+		),
+	)
+
+	router.Handle(
+		"PATCH /api/v1/bpm/reposiciones/{numero}/enviar",
+		requireBPMCreateAccess(
+			http.HandlerFunc(
+				bpmHandler.Send,
 			),
 		),
 	)
