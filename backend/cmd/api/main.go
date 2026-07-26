@@ -110,12 +110,19 @@ func main() {
 			"GERENTE",
 		)
 
-	requireProductAccess :=
+	requireProductReadAccess :=
 		middleware.RequireAuthentication(
 			authRepository,
 			"ADMINISTRADOR",
 			"BODEGUERO",
 			"VENDEDOR",
+			"GERENTE",
+		)
+
+	requireProductAdminAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
 		)
 
 	requireClientAccess :=
@@ -214,9 +221,36 @@ func main() {
 
 	router.Handle(
 		"GET /api/v1/productos",
-		requireProductAccess(
+		requireProductReadAccess(
 			http.HandlerFunc(
 				productHandler.List,
+			),
+		),
+	)
+
+	router.Handle(
+		"GET /api/v1/categorias",
+		requireProductReadAccess(
+			http.HandlerFunc(
+				productHandler.ListCategories,
+			),
+		),
+	)
+
+	router.Handle(
+		"GET /api/v1/productos/{codigo}",
+		requireProductReadAccess(
+			http.HandlerFunc(
+				productHandler.Get,
+			),
+		),
+	)
+
+	router.Handle(
+		"POST /api/v1/productos",
+		requireProductAdminAccess(
+			http.HandlerFunc(
+				productHandler.Create,
 			),
 		),
 	)
