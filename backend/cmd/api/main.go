@@ -256,6 +256,24 @@ func main() {
 	)
 
 	router.Handle(
+		"PATCH /api/v1/productos/{codigo}",
+		requireProductAdminAccess(
+			http.HandlerFunc(
+				productHandler.Update,
+			),
+		),
+	)
+
+	router.Handle(
+		"PATCH /api/v1/productos/{codigo}/estado",
+		requireProductAdminAccess(
+			http.HandlerFunc(
+				productHandler.UpdateState,
+			),
+		),
+	)
+
+	router.Handle(
 		"GET /api/v1/clientes",
 		requireClientAccess(
 			http.HandlerFunc(
