@@ -1,0 +1,631 @@
+<section class="bpm-page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Automatización de procesos</p>
+
+      <h1>Reposición de inventario</h1>
+
+      <p class="page-description">
+        Seguimiento integral de solicitudes, aprobación, compra, recepción y cierre.
+      </p>
+    </div>
+
+    <div class="header-actions">
+      <button
+        type="button"
+        class="secondary-button"
+        [disabled]="loadingBoard()"
+        (click)="refresh()"
+      >
+        {{ loadingBoard() ? 'Actualizando...' : 'Actualizar' }}
+      </button>
+
+      @if (canCreate()) {
+        <button type="button" class="primary-button" (click)="openCreate()">
+          + Nueva reposición
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="message message-error" role="alert">
+      <span>{{ errorMessage() }}</span>
+
+      <button type="button" aria-label="Cerrar mensaje" (click)="errorMessage.set('')">×</button>
+    </div>
+  }
+
+  @if (successMessage()) {
+    <div class="message message-success" role="status">
+      <span>{{ successMessage() }}</span>
+
+      <button type="button" aria-label="Cerrar mensaje" (click)="successMessage.set('')">×</button>
+    </div>
+  }
+
+  <section class="metrics-grid">
+    <article class="metric-card">
+      <span>Procesos registrados</span>
+
+      <strong>
+        {{ replenishments().length }}
+      </strong>
+
+      <small> Total de solicitudes BPM </small>
+    </article>
+
+    <article class="metric-card">
+      <span>Procesos activos</span>
+
+      <strong>
+        {{ activeProcesses() }}
+      </strong>
+
+      <small> Requieren seguimiento </small>
+    </article>
+
+    <article class="metric-card">
+      <span>Procesos cerrados</span>
+
+      <strong>
+        {{ completedProcesses() }}
+      </strong>
+
+      <small> Reposiciones completadas </small>
+    </article>
+
+    <article class="metric-card">
+      <span>Inversión estimada</span>
+
+      <strong>
+        {{ estimatedInvestment() | currency: 'USD' : 'symbol' : '1.2-2' }}
+      </strong>
+
+      <small> Excluye solicitudes rechazadas </small>
+    </article>
+  </section>
+
+  @if (loadingBoard()) {
+    <div class="loading-state">
+      <div class="loading-indicator"></div>
+
+      <p>Consultando el proceso BPM...</p>
+    </div>
+  } @else {
+    <section class="kanban-wrapper">
+      <div class="kanban-board">
+        @for (column of columns; track column.state) {
+          <section class="kanban-column" [attr.data-state]="column.state">
+            <header class="column-header">
+              <div>
+                <h2>{{ column.title }}</h2>
+                <p>{{ column.description }}</p>
+              </div>
+
+              <span class="column-count">
+                {{ countFor(column.state) }}
+              </span>
+            </header>
+
+            <div class="column-content">
+              @for (item of itemsFor(column.state); track item.id_solicitud) {
+                <button type="button" class="process-card" (click)="openDetail(item)">
+                  <div class="card-top">
+                    <span class="status-badge" [class]="'status-badge ' + statusClass(item.estado)">
+                      {{ statusLabel(item.estado) }}
+                    </span>
+
+                    <small>
+                      {{ item.fecha_creacion | date: 'dd/MM/yyyy' }}
+                    </small>
+                  </div>
+
+                  <strong class="request-number">
+                    {{ item.numero_solicitud }}
+                  </strong>
+
+                  <div class="product-information">
+                    <span>
+                      {{ item.codigo_producto }}
+                    </span>
+
+                    <p>{{ item.producto }}</p>
+                  </div>
+
+                  <dl class="card-data">
+                    <div>
+                      <dt>Cantidad</dt>
+                      <dd>
+                        {{ asNumber(item.cantidad_solicitada) | number: '1.0-3' }}
+                        {{ item.unidad_medida }}
+                      </dd>
+                    </div>
+
+                    <div>
+                      <dt>Costo estimado</dt>
+                      <dd>
+                        {{
+                          asNumber(item.costo_total_estimado) | currency: 'USD' : 'symbol' : '1.2-2'
+                        }}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <div class="provider-line">
+                    <span>Proveedor</span>
+                    <strong>
+                      {{ item.proveedor }}
+                    </strong>
+                  </div>
+
+                  <div class="stock-line">
+                    <span>
+                      Disponible:
+                      {{ asNumber(item.stock_disponible) | number: '1.0-3' }}
+                    </span>
+
+                    <span>
+                      Mínimo:
+                      {{ asNumber(item.stock_minimo) | number: '1.0-3' }}
+                    </span>
+                  </div>
+                </button>
+              } @empty {
+                <div class="empty-column">
+                  <span>○</span>
+                  <p>No hay solicitudes</p>
+                </div>
+              }
+            </div>
+          </section>
+        }
+      </div>
+    </section>
+  }
+</section>
+
+@if (loadingDetail()) {
+  <div class="overlay loading-overlay">
+    <div class="loading-card">
+      <div class="loading-indicator"></div>
+      Consultando detalle...
+    </div>
+  </div>
+}
+
+@if (selected(); as detail) {
+  <div class="overlay" (click)="closeDetail()">
+    <aside class="detail-panel" (click)="$event.stopPropagation()">
+      <header class="panel-header">
+        <div>
+          <p class="eyebrow">Instancia BPM</p>
+
+          <h2>
+            {{ detail.numero_solicitud }}
+          </h2>
+
+          <span [class]="'status-badge ' + statusClass(detail.estado)">
+            {{ statusLabel(detail.estado) }}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          class="close-button"
+          aria-label="Cerrar detalle"
+          (click)="closeDetail()"
+        >
+          ×
+        </button>
+      </header>
+
+      <div class="panel-scroll">
+        <section class="detail-section">
+          <h3>Producto e inventario</h3>
+
+          <div class="detail-grid">
+            <div>
+              <span>Código</span>
+              <strong>
+                {{ detail.codigo_producto }}
+              </strong>
+            </div>
+
+            <div>
+              <span>Producto</span>
+              <strong>
+                {{ detail.producto }}
+              </strong>
+            </div>
+
+            <div>
+              <span>Stock actual</span>
+              <strong>
+                {{ asNumber(detail.stock_actual) | number: '1.0-3' }}
+              </strong>
+            </div>
+
+            <div>
+              <span>Stock disponible</span>
+              <strong>
+                {{ asNumber(detail.stock_disponible) | number: '1.0-3' }}
+              </strong>
+            </div>
+
+            <div>
+              <span>Stock mínimo</span>
+              <strong>
+                {{ asNumber(detail.stock_minimo) | number: '1.0-3' }}
+              </strong>
+            </div>
+
+            <div>
+              <span>Unidad</span>
+              <strong>
+                {{ detail.unidad_medida }}
+              </strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="detail-section">
+          <h3>Reposición</h3>
+
+          <div class="detail-grid">
+            <div>
+              <span>Cantidad solicitada</span>
+              <strong>
+                {{ asNumber(detail.cantidad_solicitada) | number: '1.0-3' }}
+              </strong>
+            </div>
+
+            <div>
+              <span>Cantidad recibida</span>
+              <strong>
+                {{ asNumber(detail.cantidad_recibida) | number: '1.0-3' }}
+              </strong>
+            </div>
+
+            <div>
+              <span>Costo unitario</span>
+              <strong>
+                {{
+                  asNumber(detail.costo_unitario_estimado) | currency: 'USD' : 'symbol' : '1.2-2'
+                }}
+              </strong>
+            </div>
+
+            <div>
+              <span>Costo estimado</span>
+              <strong>
+                {{ asNumber(detail.costo_total_estimado) | currency: 'USD' : 'symbol' : '1.2-2' }}
+              </strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="detail-section">
+          <h3>Proveedor</h3>
+
+          <div class="provider-detail">
+            <strong>
+              {{ detail.proveedor }}
+            </strong>
+
+            <span>
+              RUC:
+              {{ detail.ruc_proveedor }}
+            </span>
+          </div>
+        </section>
+
+        <section class="detail-section">
+          <h3>Responsables</h3>
+
+          <div class="detail-grid">
+            <div>
+              <span>Solicitante</span>
+              <strong>
+                {{ detail.usuario_solicitante }}
+              </strong>
+            </div>
+
+            <div>
+              <span>Aprobador</span>
+              <strong>
+                {{ detail.usuario_aprobador || 'Pendiente' }}
+              </strong>
+            </div>
+
+            <div>
+              <span>Receptor</span>
+              <strong>
+                {{ detail.usuario_receptor || 'Pendiente' }}
+              </strong>
+            </div>
+          </div>
+        </section>
+
+        @if (detail.observacion) {
+          <section class="detail-section">
+            <h3>Observación inicial</h3>
+
+            <p class="observation-box">
+              {{ detail.observacion }}
+            </p>
+          </section>
+        }
+
+        @if (detail.motivo_rechazo) {
+          <section class="detail-section">
+            <h3>Motivo de rechazo</h3>
+
+            <p class="rejection-box">
+              {{ detail.motivo_rechazo }}
+            </p>
+          </section>
+        }
+
+        <section class="detail-section">
+          <h3>Historial del proceso</h3>
+
+          <div class="timeline">
+            @for (history of detail.historial; track history.id_historial) {
+              <article class="timeline-item">
+                <span class="timeline-dot"></span>
+
+                <div class="timeline-content">
+                  <div class="timeline-heading">
+                    <strong>
+                      {{ history.accion }}
+                    </strong>
+
+                    <time>
+                      {{ history.fecha_evento | date: 'dd/MM/yyyy HH:mm' }}
+                    </time>
+                  </div>
+
+                  <p>
+                    @if (history.estado_anterior) {
+                      {{ statusLabel(history.estado_anterior) }}
+                      →
+                    }
+
+                    <strong>
+                      {{ statusLabel(history.estado_nuevo) }}
+                    </strong>
+                  </p>
+
+                  <small>
+                    Usuario:
+                    {{ history.usuario }}
+                  </small>
+
+                  @if (history.observacion) {
+                    <blockquote>
+                      {{ history.observacion }}
+                    </blockquote>
+                  }
+                </div>
+              </article>
+            } @empty {
+              <p class="empty-history">No existe historial.</p>
+            }
+          </div>
+        </section>
+      </div>
+
+      @if (actionsFor(detail).length > 0) {
+        <footer class="panel-actions">
+          @for (action of actionsFor(detail); track action) {
+            <button
+              type="button"
+              [class]="action === 'RECHAZAR' ? 'danger-button' : 'primary-button'"
+              (click)="openAction(action, detail)"
+            >
+              {{ actionButtonLabel(action) }}
+            </button>
+          }
+        </footer>
+      }
+    </aside>
+  </div>
+}
+
+@if (showCreate()) {
+  <div class="overlay" (click)="closeCreate()">
+    <section class="modal-card create-modal" (click)="$event.stopPropagation()">
+      <header class="modal-header">
+        <div>
+          <p class="eyebrow">Nuevo proceso</p>
+
+          <h2>Crear reposición</h2>
+        </div>
+
+        <button type="button" class="close-button" aria-label="Cerrar" (click)="closeCreate()">
+          ×
+        </button>
+      </header>
+
+      <form [formGroup]="createForm" (ngSubmit)="submitCreate()">
+        <div class="form-grid">
+          <label>
+            <span>Código del producto</span>
+
+            <input
+              type="text"
+              formControlName="codigo_producto"
+              maxlength="30"
+              placeholder="GUAN-001"
+            />
+
+            @if (
+              createForm.controls.codigo_producto.touched &&
+              createForm.controls.codigo_producto.invalid
+            ) {
+              <small class="field-error"> Ingrese un código válido. </small>
+            }
+          </label>
+
+          <label>
+            <span>Proveedor</span>
+
+            <select formControlName="id_proveedor">
+              <option [ngValue]="0">Seleccione un proveedor</option>
+
+              @for (provider of providers(); track provider.id_proveedor) {
+                <option [ngValue]="provider.id_proveedor">
+                  {{ provider.razon_social }}
+                </option>
+              }
+            </select>
+
+            @if (
+              createForm.controls.id_proveedor.touched && createForm.controls.id_proveedor.invalid
+            ) {
+              <small class="field-error"> Seleccione un proveedor. </small>
+            }
+          </label>
+
+          <label>
+            <span>Cantidad solicitada</span>
+
+            <input
+              type="text"
+              inputmode="decimal"
+              formControlName="cantidad_solicitada"
+              placeholder="15.000"
+            />
+          </label>
+
+          <label>
+            <span>Costo unitario estimado</span>
+
+            <input
+              type="text"
+              inputmode="decimal"
+              formControlName="costo_unitario_estimado"
+              placeholder="1.80"
+            />
+          </label>
+        </div>
+
+        <label>
+          <span>Observación</span>
+
+          <textarea
+            formControlName="observacion"
+            maxlength="1000"
+            rows="4"
+            placeholder="Explique la necesidad de reposición"
+          ></textarea>
+        </label>
+
+        <footer class="modal-actions">
+          <button
+            type="button"
+            class="secondary-button"
+            [disabled]="saving()"
+            (click)="closeCreate()"
+          >
+            Cancelar
+          </button>
+
+          <button type="submit" class="primary-button" [disabled]="createForm.invalid || saving()">
+            {{ saving() ? 'Creando...' : 'Crear borrador' }}
+          </button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (actionDialog(); as dialog) {
+  <div class="overlay" (click)="closeAction()">
+    <section class="modal-card action-modal" (click)="$event.stopPropagation()">
+      <header class="modal-header">
+        <div>
+          <p class="eyebrow">
+            {{ dialog.item.numero_solicitud }}
+          </p>
+
+          <h2>
+            {{ actionTitle(dialog.action) }}
+          </h2>
+        </div>
+
+        <button type="button" class="close-button" aria-label="Cerrar" (click)="closeAction()">
+          ×
+        </button>
+      </header>
+
+      <form [formGroup]="actionForm" (ngSubmit)="submitAction()">
+        @if (dialog.action === 'RECHAZAR') {
+          <label>
+            <span>Motivo del rechazo</span>
+
+            <textarea
+              formControlName="motivo_rechazo"
+              maxlength="500"
+              rows="5"
+              placeholder="Indique el motivo de la decisión"
+            ></textarea>
+          </label>
+        } @else if (dialog.action === 'RECIBIR') {
+          <label>
+            <span>Cantidad recibida</span>
+
+            <input
+              type="text"
+              inputmode="decimal"
+              formControlName="cantidad_recibida"
+              placeholder="10.000"
+            />
+          </label>
+
+          <label>
+            <span> Observación de recepción </span>
+
+            <textarea
+              formControlName="observacion"
+              maxlength="1000"
+              rows="4"
+              placeholder="Estado de los productos recibidos"
+            ></textarea>
+          </label>
+        } @else {
+          <label>
+            <span>Observación</span>
+
+            <textarea
+              formControlName="observacion"
+              maxlength="1000"
+              rows="4"
+              placeholder="Información adicional de la transición"
+            ></textarea>
+          </label>
+        }
+
+        <footer class="modal-actions">
+          <button
+            type="button"
+            class="secondary-button"
+            [disabled]="saving()"
+            (click)="closeAction()"
+          >
+            Cancelar
+          </button>
+
+          <button
+            type="submit"
+            [class]="dialog.action === 'RECHAZAR' ? 'danger-button' : 'primary-button'"
+            [disabled]="saving()"
+          >
+            {{ saving() ? 'Procesando...' : actionButtonLabel(dialog.action) }}
+          </button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}

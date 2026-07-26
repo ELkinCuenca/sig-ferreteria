@@ -77,6 +77,15 @@ export const routes: Routes = [
     title: 'Detalle de venta | SIGEFER',
   },
   {
+    path: 'bpm',
+    canActivate: [roleGuard],
+    data: {
+      roles: ['ADMINISTRADOR', 'BODEGUERO', 'GERENTE'],
+    },
+    loadComponent: () => import('./pages/bpm/bpm.component').then((module) => module.BPMComponent),
+    title: 'Reposición BPM | SIGEFER',
+  },
+  {
     path: '**',
     redirectTo: '',
   },

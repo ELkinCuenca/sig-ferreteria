@@ -55,11 +55,12 @@
         }
 
         <p class="nav-heading secondary-heading">Sistema</p>
-
-        <a class="disabled-link" aria-disabled="true">
-          <span class="nav-icon">B</span>
-          BPM
-        </a>
+        @if (session.hasAnyRole(['ADMINISTRADOR', 'BODEGUERO', 'GERENTE'])) {
+          <a routerLink="/bpm" routerLinkActive="active">
+            <span class="nav-icon">B</span>
+            BPM
+          </a>
+        }
 
         <a class="disabled-link" aria-disabled="true">
           <span class="nav-icon">I</span>
