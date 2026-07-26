@@ -154,6 +154,21 @@ func main() {
 			"BODEGUERO",
 		)
 
+	requireInventoryAdjustmentAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+			"BODEGUERO",
+		)
+
+	requireInventoryMovementReadAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+			"BODEGUERO",
+			"GERENTE",
+		)
+
 	requireBPMReadAccess :=
 		middleware.RequireAuthentication(
 			authRepository,
@@ -269,6 +284,24 @@ func main() {
 		requireProductAdminAccess(
 			http.HandlerFunc(
 				productHandler.UpdateState,
+			),
+		),
+	)
+
+	router.Handle(
+		"GET /api/v1/inventario/movimientos",
+		requireInventoryMovementReadAccess(
+			http.HandlerFunc(
+				productHandler.ListInventoryMovements,
+			),
+		),
+	)
+
+	router.Handle(
+		"POST /api/v1/inventario/ajustes",
+		requireInventoryAdjustmentAccess(
+			http.HandlerFunc(
+				productHandler.AdjustInventory,
 			),
 		),
 	)
