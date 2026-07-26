@@ -235,8 +235,17 @@ func (
 				FECHA_CREACION DESC,
 				ID_SOLICITUD DESC
 		)
-		WHERE ROWNUM <= :1
 	`
+
+	if state != "" {
+		query += `
+			WHERE ROWNUM <= :2
+		`
+	} else {
+		query += `
+			WHERE ROWNUM <= :1
+		`
+	}
 
 	arguments = append(
 		arguments,
@@ -1295,4 +1304,878 @@ func insertBPMAudit(
 	}
 
 	return nil
+}
+
+// ErrBPMInvalidReceivedQuantity indica que la cantidad
+// recibida no corresponde a la solicitud.
+var ErrBPMInvalidReceivedQuantity = errors.New(
+	"cantidad recibida inválida",
+)
+
+// ErrBPMInventoryNotFound indica que el producto no tiene
+// un registro de inventario disponible.
+var ErrBPMInventoryNotFound = errors.New(
+	"inventario no encontrado",
+)
+
+// Approve cambia SOLICITADA a APROBADA.
+func (repository *BPMRepository) Approve(
+	ctx context.Context,
+	number string,
+	userID int64,
+	observation string,
+	ipAddress string,
+) (models.ReplenishmentDetail, error) {
+	tx, err := repository.db.BeginTx(ctx, nil)
+	if err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo iniciar la aprobación BPM: %w",
+				err,
+			)
+	}
+
+	committed := false
+
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	requestID, state, err :=
+		lockBPMRequestState(
+			ctx,
+			tx,
+			number,
+		)
+
+	if err != nil {
+		return models.ReplenishmentDetail{}, err
+	}
+
+	if state != "SOLICITADA" {
+		return models.ReplenishmentDetail{},
+			ErrBPMInvalidTransition
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		`
+			UPDATE SOLICITUD_REPOSICION
+			SET
+				ESTADO = 'APROBADA',
+				ID_USUARIO_APROBADOR = :1,
+				FECHA_APROBACION =
+					CAST(
+						SYSTIMESTAMP
+						AT TIME ZONE '-05:00'
+						AS TIMESTAMP
+					),
+				FECHA_ACTUALIZACION =
+					CAST(
+						SYSTIMESTAMP
+						AT TIME ZONE '-05:00'
+						AS TIMESTAMP
+					)
+			WHERE ID_SOLICITUD = :2
+		`,
+		userID,
+		requestID,
+	)
+	if err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo aprobar la reposición: %w",
+				err,
+			)
+	}
+
+	if err := insertBPMHistory(
+		ctx,
+		tx,
+		requestID,
+		userID,
+		"SOLICITADA",
+		"APROBADA",
+		"APROBAR",
+		observation,
+	); err != nil {
+		return models.ReplenishmentDetail{}, err
+	}
+
+	if err := insertBPMAudit(
+		ctx,
+		tx,
+		userID,
+		requestID,
+		"UPDATE",
+		"APROBADA",
+		number,
+		ipAddress,
+	); err != nil {
+		return models.ReplenishmentDetail{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo confirmar la aprobación: %w",
+				err,
+			)
+	}
+
+	committed = true
+
+	return repository.GetReplenishment(
+		ctx,
+		number,
+	)
+}
+
+// Reject cambia SOLICITADA a RECHAZADA.
+func (repository *BPMRepository) Reject(
+	ctx context.Context,
+	number string,
+	userID int64,
+	reason string,
+	ipAddress string,
+) (models.ReplenishmentDetail, error) {
+	tx, err := repository.db.BeginTx(ctx, nil)
+	if err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo iniciar el rechazo BPM: %w",
+				err,
+			)
+	}
+
+	committed := false
+
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	requestID, state, err :=
+		lockBPMRequestState(
+			ctx,
+			tx,
+			number,
+		)
+
+	if err != nil {
+		return models.ReplenishmentDetail{}, err
+	}
+
+	if state != "SOLICITADA" {
+		return models.ReplenishmentDetail{},
+			ErrBPMInvalidTransition
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		`
+			UPDATE SOLICITUD_REPOSICION
+			SET
+				ESTADO = 'RECHAZADA',
+				ID_USUARIO_APROBADOR = :1,
+				MOTIVO_RECHAZO = :2,
+				FECHA_RECHAZO =
+					CAST(
+						SYSTIMESTAMP
+						AT TIME ZONE '-05:00'
+						AS TIMESTAMP
+					),
+				FECHA_ACTUALIZACION =
+					CAST(
+						SYSTIMESTAMP
+						AT TIME ZONE '-05:00'
+						AS TIMESTAMP
+					)
+			WHERE ID_SOLICITUD = :3
+		`,
+		userID,
+		reason,
+		requestID,
+	)
+	if err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo rechazar la reposición: %w",
+				err,
+			)
+	}
+
+	if err := insertBPMHistory(
+		ctx,
+		tx,
+		requestID,
+		userID,
+		"SOLICITADA",
+		"RECHAZADA",
+		"RECHAZAR",
+		reason,
+	); err != nil {
+		return models.ReplenishmentDetail{}, err
+	}
+
+	if err := insertBPMAudit(
+		ctx,
+		tx,
+		userID,
+		requestID,
+		"UPDATE",
+		"RECHAZADA",
+		number,
+		ipAddress,
+	); err != nil {
+		return models.ReplenishmentDetail{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo confirmar el rechazo: %w",
+				err,
+			)
+	}
+
+	committed = true
+
+	return repository.GetReplenishment(
+		ctx,
+		number,
+	)
+}
+
+// MarkOrder cambia APROBADA a EN_PEDIDO.
+func (repository *BPMRepository) MarkOrder(
+	ctx context.Context,
+	number string,
+	userID int64,
+	observation string,
+	ipAddress string,
+) (models.ReplenishmentDetail, error) {
+	tx, err := repository.db.BeginTx(ctx, nil)
+	if err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo iniciar el pedido BPM: %w",
+				err,
+			)
+	}
+
+	committed := false
+
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	requestID, state, err :=
+		lockBPMRequestState(
+			ctx,
+			tx,
+			number,
+		)
+
+	if err != nil {
+		return models.ReplenishmentDetail{}, err
+	}
+
+	if state != "APROBADA" {
+		return models.ReplenishmentDetail{},
+			ErrBPMInvalidTransition
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		`
+			UPDATE SOLICITUD_REPOSICION
+			SET
+				ESTADO = 'EN_PEDIDO',
+				FECHA_PEDIDO =
+					CAST(
+						SYSTIMESTAMP
+						AT TIME ZONE '-05:00'
+						AS TIMESTAMP
+					),
+				FECHA_ACTUALIZACION =
+					CAST(
+						SYSTIMESTAMP
+						AT TIME ZONE '-05:00'
+						AS TIMESTAMP
+					)
+			WHERE ID_SOLICITUD = :1
+		`,
+		requestID,
+	)
+	if err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo registrar el pedido: %w",
+				err,
+			)
+	}
+
+	if err := insertBPMHistory(
+		ctx,
+		tx,
+		requestID,
+		userID,
+		"APROBADA",
+		"EN_PEDIDO",
+		"MARCAR_PEDIDO",
+		observation,
+	); err != nil {
+		return models.ReplenishmentDetail{}, err
+	}
+
+	if err := insertBPMAudit(
+		ctx,
+		tx,
+		userID,
+		requestID,
+		"UPDATE",
+		"EN_PEDIDO",
+		number,
+		ipAddress,
+	); err != nil {
+		return models.ReplenishmentDetail{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo confirmar el pedido: %w",
+				err,
+			)
+	}
+
+	committed = true
+
+	return repository.GetReplenishment(
+		ctx,
+		number,
+	)
+}
+
+// Receive registra la recepción y actualiza inventario
+// dentro de una sola transacción.
+func (repository *BPMRepository) Receive(
+	ctx context.Context,
+	number string,
+	userID int64,
+	quantity decimal.Decimal,
+	observation string,
+	ipAddress string,
+) (models.ReplenishmentDetail, error) {
+	tx, err := repository.db.BeginTx(ctx, nil)
+	if err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo iniciar la recepción BPM: %w",
+				err,
+			)
+	}
+
+	committed := false
+
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	var (
+		requestID      int64
+		productID      int64
+		state          string
+		requestedFloat float64
+	)
+
+	err = tx.QueryRowContext(
+		ctx,
+		`
+			SELECT
+				ID_SOLICITUD,
+				ID_PRODUCTO,
+				ESTADO,
+				CANTIDAD_SOLICITADA
+			FROM SOLICITUD_REPOSICION
+			WHERE NUMERO_SOLICITUD = :1
+			FOR UPDATE
+		`,
+		number,
+	).Scan(
+		&requestID,
+		&productID,
+		&state,
+		&requestedFloat,
+	)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return models.ReplenishmentDetail{},
+			ErrBPMRequestNotFound
+	}
+
+	if err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo bloquear la reposición: %w",
+				err,
+			)
+	}
+
+	if state != "EN_PEDIDO" {
+		return models.ReplenishmentDetail{},
+			ErrBPMInvalidTransition
+	}
+
+	requestedQuantity :=
+		decimal.NewFromFloat(
+			requestedFloat,
+		)
+
+	if !quantity.GreaterThan(decimal.Zero) ||
+		quantity.GreaterThan(
+			requestedQuantity,
+		) {
+		return models.ReplenishmentDetail{},
+			ErrBPMInvalidReceivedQuantity
+	}
+
+	var (
+		currentFloat  float64
+		reservedFloat float64
+		minimumFloat  float64
+	)
+
+	err = tx.QueryRowContext(
+		ctx,
+		`
+			SELECT
+				i.STOCK_ACTUAL,
+				i.STOCK_RESERVADO,
+				p.STOCK_MINIMO
+			FROM INVENTARIO i
+			INNER JOIN PRODUCTO p
+				ON p.ID_PRODUCTO = i.ID_PRODUCTO
+			WHERE i.ID_PRODUCTO = :1
+			FOR UPDATE OF i.STOCK_ACTUAL
+		`,
+		productID,
+	).Scan(
+		&currentFloat,
+		&reservedFloat,
+		&minimumFloat,
+	)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return models.ReplenishmentDetail{},
+			ErrBPMInventoryNotFound
+	}
+
+	if err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo bloquear el inventario: %w",
+				err,
+			)
+	}
+
+	currentStock :=
+		decimal.NewFromFloat(currentFloat)
+
+	reservedStock :=
+		decimal.NewFromFloat(reservedFloat)
+
+	minimumStock :=
+		decimal.NewFromFloat(minimumFloat)
+
+	newCurrentStock :=
+		currentStock.Add(quantity)
+
+	newAvailableStock :=
+		newCurrentStock.Sub(reservedStock)
+
+	result, err := tx.ExecContext(
+		ctx,
+		`
+			UPDATE INVENTARIO
+			SET
+				STOCK_ACTUAL = :1,
+				FECHA_ULTIMO_MOVIMIENTO =
+					CAST(
+						SYSTIMESTAMP
+						AT TIME ZONE '-05:00'
+						AS TIMESTAMP
+					),
+				FECHA_ACTUALIZACION =
+					CAST(
+						SYSTIMESTAMP
+						AT TIME ZONE '-05:00'
+						AS TIMESTAMP
+					)
+			WHERE ID_PRODUCTO = :2
+		`,
+		newCurrentStock.InexactFloat64(),
+		productID,
+	)
+	if err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo actualizar el inventario: %w",
+				err,
+			)
+	}
+
+	affectedRows, err := result.RowsAffected()
+	if err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo verificar el inventario: %w",
+				err,
+			)
+	}
+
+	if affectedRows != 1 {
+		return models.ReplenishmentDetail{},
+			ErrBPMInventoryNotFound
+	}
+
+	movementReason :=
+		"Entrada por reposición " + number
+
+	if observation != "" {
+		movementReason += ": " + observation
+	}
+
+	if len([]rune(movementReason)) > 300 {
+		movementReason = string(
+			[]rune(movementReason)[:300],
+		)
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		`
+			INSERT INTO MOVIMIENTO_INVENTARIO (
+				ID_PRODUCTO,
+				ID_USUARIO,
+				TIPO_MOVIMIENTO,
+				CANTIDAD,
+				STOCK_ANTERIOR,
+				STOCK_NUEVO,
+				MOTIVO,
+				ID_SOLICITUD_REPOSICION,
+				FECHA_MOVIMIENTO
+			)
+			VALUES (
+				:1,
+				:2,
+				'ENTRADA_COMPRA',
+				:3,
+				:4,
+				:5,
+				:6,
+				:7,
+				CAST(
+					SYSTIMESTAMP
+					AT TIME ZONE '-05:00'
+					AS TIMESTAMP
+				)
+			)
+		`,
+		productID,
+		userID,
+		quantity.InexactFloat64(),
+		currentStock.InexactFloat64(),
+		newCurrentStock.InexactFloat64(),
+		movementReason,
+		requestID,
+	)
+	if err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo registrar la entrada de inventario: %w",
+				err,
+			)
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		`
+			UPDATE SOLICITUD_REPOSICION
+			SET
+				ESTADO = 'RECIBIDA',
+				CANTIDAD_RECIBIDA = :1,
+				ID_USUARIO_RECEPTOR = :2,
+				FECHA_RECEPCION =
+					CAST(
+						SYSTIMESTAMP
+						AT TIME ZONE '-05:00'
+						AS TIMESTAMP
+					),
+				FECHA_ACTUALIZACION =
+					CAST(
+						SYSTIMESTAMP
+						AT TIME ZONE '-05:00'
+						AS TIMESTAMP
+					)
+			WHERE ID_SOLICITUD = :3
+		`,
+		quantity.InexactFloat64(),
+		userID,
+		requestID,
+	)
+	if err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo confirmar la recepción BPM: %w",
+				err,
+			)
+	}
+
+	// Una alerta pendiente solo se cierra cuando
+	// el stock disponible supera el mínimo.
+	if newAvailableStock.GreaterThan(
+		minimumStock,
+	) {
+		_, err = tx.ExecContext(
+			ctx,
+			`
+				UPDATE ALERTA_STOCK
+				SET
+					ESTADO = 'ATENDIDA',
+					ID_USUARIO_ATENCION = :1,
+					FECHA_ATENCION =
+						CAST(
+							SYSTIMESTAMP
+							AT TIME ZONE '-05:00'
+							AS TIMESTAMP
+						),
+					OBSERVACION_ATENCION =
+						'Stock normalizado mediante '
+						|| :2,
+					FECHA_ACTUALIZACION =
+						CAST(
+							SYSTIMESTAMP
+							AT TIME ZONE '-05:00'
+							AS TIMESTAMP
+						)
+				WHERE ID_PRODUCTO = :3
+				  AND ESTADO = 'PENDIENTE'
+			`,
+			userID,
+			number,
+			productID,
+		)
+		if err != nil {
+			return models.ReplenishmentDetail{},
+				fmt.Errorf(
+					"no se pudo actualizar la alerta de stock: %w",
+					err,
+				)
+		}
+	}
+
+	if err := insertBPMHistory(
+		ctx,
+		tx,
+		requestID,
+		userID,
+		"EN_PEDIDO",
+		"RECIBIDA",
+		"RECIBIR",
+		observation,
+	); err != nil {
+		return models.ReplenishmentDetail{}, err
+	}
+
+	if err := insertBPMAudit(
+		ctx,
+		tx,
+		userID,
+		requestID,
+		"UPDATE",
+		"RECIBIDA",
+		number,
+		ipAddress,
+	); err != nil {
+		return models.ReplenishmentDetail{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo confirmar la recepción: %w",
+				err,
+			)
+	}
+
+	committed = true
+
+	return repository.GetReplenishment(
+		ctx,
+		number,
+	)
+}
+
+// Close cambia RECIBIDA a CERRADA.
+func (repository *BPMRepository) Close(
+	ctx context.Context,
+	number string,
+	userID int64,
+	observation string,
+	ipAddress string,
+) (models.ReplenishmentDetail, error) {
+	tx, err := repository.db.BeginTx(ctx, nil)
+	if err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo iniciar el cierre BPM: %w",
+				err,
+			)
+	}
+
+	committed := false
+
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	requestID, state, err :=
+		lockBPMRequestState(
+			ctx,
+			tx,
+			number,
+		)
+
+	if err != nil {
+		return models.ReplenishmentDetail{}, err
+	}
+
+	if state != "RECIBIDA" {
+		return models.ReplenishmentDetail{},
+			ErrBPMInvalidTransition
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		`
+			UPDATE SOLICITUD_REPOSICION
+			SET
+				ESTADO = 'CERRADA',
+				FECHA_CIERRE =
+					CAST(
+						SYSTIMESTAMP
+						AT TIME ZONE '-05:00'
+						AS TIMESTAMP
+					),
+				FECHA_ACTUALIZACION =
+					CAST(
+						SYSTIMESTAMP
+						AT TIME ZONE '-05:00'
+						AS TIMESTAMP
+					)
+			WHERE ID_SOLICITUD = :1
+		`,
+		requestID,
+	)
+	if err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo cerrar la reposición: %w",
+				err,
+			)
+	}
+
+	if err := insertBPMHistory(
+		ctx,
+		tx,
+		requestID,
+		userID,
+		"RECIBIDA",
+		"CERRADA",
+		"CERRAR",
+		observation,
+	); err != nil {
+		return models.ReplenishmentDetail{}, err
+	}
+
+	if err := insertBPMAudit(
+		ctx,
+		tx,
+		userID,
+		requestID,
+		"UPDATE",
+		"CERRADA",
+		number,
+		ipAddress,
+	); err != nil {
+		return models.ReplenishmentDetail{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return models.ReplenishmentDetail{},
+			fmt.Errorf(
+				"no se pudo confirmar el cierre BPM: %w",
+				err,
+			)
+	}
+
+	committed = true
+
+	return repository.GetReplenishment(
+		ctx,
+		number,
+	)
+}
+
+func lockBPMRequestState(
+	ctx context.Context,
+	tx *sql.Tx,
+	number string,
+) (int64, string, error) {
+	var (
+		requestID int64
+		state     string
+	)
+
+	err := tx.QueryRowContext(
+		ctx,
+		`
+			SELECT
+				ID_SOLICITUD,
+				ESTADO
+			FROM SOLICITUD_REPOSICION
+			WHERE NUMERO_SOLICITUD = :1
+			FOR UPDATE
+		`,
+		number,
+	).Scan(
+		&requestID,
+		&state,
+	)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, "",
+			ErrBPMRequestNotFound
+	}
+
+	if err != nil {
+		return 0, "",
+			fmt.Errorf(
+				"no se pudo bloquear la solicitud BPM: %w",
+				err,
+			)
+	}
+
+	return requestID, state, nil
 }

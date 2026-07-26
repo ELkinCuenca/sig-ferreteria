@@ -631,3 +631,577 @@ func writeBPMError(
 		},
 	)
 }
+
+// Approve procesa PATCH .../{numero}/aprobar.
+func (handler *BPMHandler) Approve(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	principal, number, valid :=
+		bpmPrincipalAndNumber(
+			writer,
+			request,
+		)
+
+	if !valid {
+		return
+	}
+
+	var payload models.ReplenishmentTransitionRequest
+
+	if err := decodeBPMJSON(
+		writer,
+		request,
+		&payload,
+	); err != nil {
+		writeBPMError(
+			writer,
+			http.StatusBadRequest,
+			err.Error(),
+		)
+		return
+	}
+
+	payload.Observacion = strings.TrimSpace(
+		payload.Observacion,
+	)
+
+	if !validBPMObservation(
+		payload.Observacion,
+		1000,
+	) {
+		writeBPMError(
+			writer,
+			http.StatusBadRequest,
+			"observacion supera 1000 caracteres",
+		)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(
+		request.Context(),
+		20*time.Second,
+	)
+	defer cancel()
+
+	item, err := handler.repository.Approve(
+		ctx,
+		number,
+		principal.IDUsuario,
+		payload.Observacion,
+		clientIP(request),
+	)
+
+	if handleBPMTransitionError(
+		writer,
+		err,
+		"solo una solicitud enviada puede aprobarse",
+	) {
+		return
+	}
+
+	if err != nil {
+		log.Printf(
+			"error aprobando %s: %v",
+			number,
+			err,
+		)
+
+		writeBPMError(
+			writer,
+			http.StatusInternalServerError,
+			"no fue posible aprobar la reposición",
+		)
+		return
+	}
+
+	writeJSON(writer, item)
+}
+
+// Reject procesa PATCH .../{numero}/rechazar.
+func (handler *BPMHandler) Reject(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	principal, number, valid :=
+		bpmPrincipalAndNumber(
+			writer,
+			request,
+		)
+
+	if !valid {
+		return
+	}
+
+	var payload models.RejectReplenishmentRequest
+
+	if err := decodeBPMJSON(
+		writer,
+		request,
+		&payload,
+	); err != nil {
+		writeBPMError(
+			writer,
+			http.StatusBadRequest,
+			err.Error(),
+		)
+		return
+	}
+
+	payload.MotivoRechazo =
+		strings.TrimSpace(
+			payload.MotivoRechazo,
+		)
+
+	length := utf8.RuneCountInString(
+		payload.MotivoRechazo,
+	)
+
+	if length < 5 || length > 500 {
+		writeBPMError(
+			writer,
+			http.StatusBadRequest,
+			"motivo_rechazo debe contener entre 5 y 500 caracteres",
+		)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(
+		request.Context(),
+		20*time.Second,
+	)
+	defer cancel()
+
+	item, err := handler.repository.Reject(
+		ctx,
+		number,
+		principal.IDUsuario,
+		payload.MotivoRechazo,
+		clientIP(request),
+	)
+
+	if handleBPMTransitionError(
+		writer,
+		err,
+		"solo una solicitud enviada puede rechazarse",
+	) {
+		return
+	}
+
+	if err != nil {
+		log.Printf(
+			"error rechazando %s: %v",
+			number,
+			err,
+		)
+
+		writeBPMError(
+			writer,
+			http.StatusInternalServerError,
+			"no fue posible rechazar la reposición",
+		)
+		return
+	}
+
+	writeJSON(writer, item)
+}
+
+// MarkOrder procesa PATCH .../{numero}/pedido.
+func (handler *BPMHandler) MarkOrder(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	principal, number, valid :=
+		bpmPrincipalAndNumber(
+			writer,
+			request,
+		)
+
+	if !valid {
+		return
+	}
+
+	var payload models.ReplenishmentTransitionRequest
+
+	if err := decodeBPMJSON(
+		writer,
+		request,
+		&payload,
+	); err != nil {
+		writeBPMError(
+			writer,
+			http.StatusBadRequest,
+			err.Error(),
+		)
+		return
+	}
+
+	payload.Observacion = strings.TrimSpace(
+		payload.Observacion,
+	)
+
+	if !validBPMObservation(
+		payload.Observacion,
+		1000,
+	) {
+		writeBPMError(
+			writer,
+			http.StatusBadRequest,
+			"observacion supera 1000 caracteres",
+		)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(
+		request.Context(),
+		20*time.Second,
+	)
+	defer cancel()
+
+	item, err := handler.repository.MarkOrder(
+		ctx,
+		number,
+		principal.IDUsuario,
+		payload.Observacion,
+		clientIP(request),
+	)
+
+	if handleBPMTransitionError(
+		writer,
+		err,
+		"solo una solicitud aprobada puede marcarse como pedido",
+	) {
+		return
+	}
+
+	if err != nil {
+		log.Printf(
+			"error registrando pedido %s: %v",
+			number,
+			err,
+		)
+
+		writeBPMError(
+			writer,
+			http.StatusInternalServerError,
+			"no fue posible registrar el pedido",
+		)
+		return
+	}
+
+	writeJSON(writer, item)
+}
+
+// Receive procesa PATCH .../{numero}/recibir.
+func (handler *BPMHandler) Receive(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	principal, number, valid :=
+		bpmPrincipalAndNumber(
+			writer,
+			request,
+		)
+
+	if !valid {
+		return
+	}
+
+	var payload models.ReceiveReplenishmentRequest
+
+	if err := decodeBPMJSON(
+		writer,
+		request,
+		&payload,
+	); err != nil {
+		writeBPMError(
+			writer,
+			http.StatusBadRequest,
+			err.Error(),
+		)
+		return
+	}
+
+	payload.Observacion = strings.TrimSpace(
+		payload.Observacion,
+	)
+
+	if !payload.CantidadRecibida.
+		GreaterThan(decimal.Zero) {
+		writeBPMError(
+			writer,
+			http.StatusBadRequest,
+			"cantidad_recibida debe ser mayor que cero",
+		)
+		return
+	}
+
+	if payload.CantidadRecibida.
+		GreaterThan(
+			decimalMaximumQuantity(),
+		) {
+		writeBPMError(
+			writer,
+			http.StatusBadRequest,
+			"cantidad_recibida supera el máximo permitido",
+		)
+		return
+	}
+
+	if !validBPMObservation(
+		payload.Observacion,
+		1000,
+	) {
+		writeBPMError(
+			writer,
+			http.StatusBadRequest,
+			"observacion supera 1000 caracteres",
+		)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(
+		request.Context(),
+		30*time.Second,
+	)
+	defer cancel()
+
+	item, err := handler.repository.Receive(
+		ctx,
+		number,
+		principal.IDUsuario,
+		payload.CantidadRecibida,
+		payload.Observacion,
+		clientIP(request),
+	)
+
+	switch {
+	case errors.Is(
+		err,
+		repository.ErrBPMRequestNotFound,
+	):
+		writeBPMError(
+			writer,
+			http.StatusNotFound,
+			"solicitud de reposición no encontrada",
+		)
+		return
+
+	case errors.Is(
+		err,
+		repository.ErrBPMInvalidTransition,
+	):
+		writeBPMError(
+			writer,
+			http.StatusConflict,
+			"solo una solicitud en pedido puede recibirse",
+		)
+		return
+
+	case errors.Is(
+		err,
+		repository.ErrBPMInvalidReceivedQuantity,
+	):
+		writeBPMError(
+			writer,
+			http.StatusBadRequest,
+			"cantidad_recibida debe ser mayor que cero y no superar la cantidad solicitada",
+		)
+		return
+
+	case errors.Is(
+		err,
+		repository.ErrBPMInventoryNotFound,
+	):
+		writeBPMError(
+			writer,
+			http.StatusConflict,
+			"el producto no tiene inventario disponible",
+		)
+		return
+
+	case err != nil:
+		log.Printf(
+			"error recibiendo reposición %s: %v",
+			number,
+			err,
+		)
+
+		writeBPMError(
+			writer,
+			http.StatusInternalServerError,
+			"no fue posible registrar la recepción",
+		)
+		return
+	}
+
+	writeJSON(writer, item)
+}
+
+// Close procesa PATCH .../{numero}/cerrar.
+func (handler *BPMHandler) Close(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	principal, number, valid :=
+		bpmPrincipalAndNumber(
+			writer,
+			request,
+		)
+
+	if !valid {
+		return
+	}
+
+	var payload models.ReplenishmentTransitionRequest
+
+	if err := decodeBPMJSON(
+		writer,
+		request,
+		&payload,
+	); err != nil {
+		writeBPMError(
+			writer,
+			http.StatusBadRequest,
+			err.Error(),
+		)
+		return
+	}
+
+	payload.Observacion = strings.TrimSpace(
+		payload.Observacion,
+	)
+
+	if !validBPMObservation(
+		payload.Observacion,
+		1000,
+	) {
+		writeBPMError(
+			writer,
+			http.StatusBadRequest,
+			"observacion supera 1000 caracteres",
+		)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(
+		request.Context(),
+		20*time.Second,
+	)
+	defer cancel()
+
+	item, err := handler.repository.Close(
+		ctx,
+		number,
+		principal.IDUsuario,
+		payload.Observacion,
+		clientIP(request),
+	)
+
+	if handleBPMTransitionError(
+		writer,
+		err,
+		"solo una recepción confirmada puede cerrarse",
+	) {
+		return
+	}
+
+	if err != nil {
+		log.Printf(
+			"error cerrando reposición %s: %v",
+			number,
+			err,
+		)
+
+		writeBPMError(
+			writer,
+			http.StatusInternalServerError,
+			"no fue posible cerrar la reposición",
+		)
+		return
+	}
+
+	writeJSON(writer, item)
+}
+
+func bpmPrincipalAndNumber(
+	writer http.ResponseWriter,
+	request *http.Request,
+) (models.AuthPrincipal, string, bool) {
+	principal, valid :=
+		middleware.PrincipalFromContext(
+			request.Context(),
+		)
+
+	if !valid {
+		writeBPMError(
+			writer,
+			http.StatusUnauthorized,
+			"sesión autenticada no disponible",
+		)
+
+		return models.AuthPrincipal{},
+			"",
+			false
+	}
+
+	number := normalizeBPMNumber(
+		request.PathValue("numero"),
+	)
+
+	if number == "" {
+		writeBPMError(
+			writer,
+			http.StatusBadRequest,
+			"número de solicitud inválido",
+		)
+
+		return models.AuthPrincipal{},
+			"",
+			false
+	}
+
+	return principal, number, true
+}
+
+func validBPMObservation(
+	value string,
+	maximum int,
+) bool {
+	return utf8.RuneCountInString(
+		value,
+	) <= maximum
+}
+
+func handleBPMTransitionError(
+	writer http.ResponseWriter,
+	err error,
+	transitionMessage string,
+) bool {
+	switch {
+	case errors.Is(
+		err,
+		repository.ErrBPMRequestNotFound,
+	):
+		writeBPMError(
+			writer,
+			http.StatusNotFound,
+			"solicitud de reposición no encontrada",
+		)
+		return true
+
+	case errors.Is(
+		err,
+		repository.ErrBPMInvalidTransition,
+	):
+		writeBPMError(
+			writer,
+			http.StatusConflict,
+			transitionMessage,
+		)
+		return true
+
+	default:
+		return false
+	}
+}

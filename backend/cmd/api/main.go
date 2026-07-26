@@ -162,6 +162,26 @@ func main() {
 			"BODEGUERO",
 		)
 
+	requireBPMDecisionAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+			"GERENTE",
+		)
+
+	requireBPMOrderAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+		)
+
+	requireBPMReceiveAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+			"BODEGUERO",
+		)
+
 	router := http.NewServeMux()
 
 	router.HandleFunc(
@@ -305,6 +325,51 @@ func main() {
 		requireBPMCreateAccess(
 			http.HandlerFunc(
 				bpmHandler.Send,
+			),
+		),
+	)
+
+	router.Handle(
+		"PATCH /api/v1/bpm/reposiciones/{numero}/aprobar",
+		requireBPMDecisionAccess(
+			http.HandlerFunc(
+				bpmHandler.Approve,
+			),
+		),
+	)
+
+	router.Handle(
+		"PATCH /api/v1/bpm/reposiciones/{numero}/rechazar",
+		requireBPMDecisionAccess(
+			http.HandlerFunc(
+				bpmHandler.Reject,
+			),
+		),
+	)
+
+	router.Handle(
+		"PATCH /api/v1/bpm/reposiciones/{numero}/pedido",
+		requireBPMOrderAccess(
+			http.HandlerFunc(
+				bpmHandler.MarkOrder,
+			),
+		),
+	)
+
+	router.Handle(
+		"PATCH /api/v1/bpm/reposiciones/{numero}/recibir",
+		requireBPMReceiveAccess(
+			http.HandlerFunc(
+				bpmHandler.Receive,
+			),
+		),
+	)
+
+	router.Handle(
+		"PATCH /api/v1/bpm/reposiciones/{numero}/cerrar",
+		requireBPMDecisionAccess(
+			http.HandlerFunc(
+				bpmHandler.Close,
 			),
 		),
 	)

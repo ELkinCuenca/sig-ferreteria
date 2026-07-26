@@ -97,3 +97,16 @@ type ReplenishmentDetail struct {
 	Replenishment
 	Historial []ReplenishmentHistory `json:"historial"`
 }
+
+// RejectReplenishmentRequest representa el rechazo
+// de una solicitud de reposición.
+type RejectReplenishmentRequest struct {
+	MotivoRechazo string `json:"motivo_rechazo"`
+}
+
+// ReceiveReplenishmentRequest representa la entrada
+// física de productos al inventario.
+type ReceiveReplenishmentRequest struct {
+	CantidadRecibida decimal.Decimal `json:"cantidad_recibida"`
+	Observacion      string          `json:"observacion,omitempty"`
+}
