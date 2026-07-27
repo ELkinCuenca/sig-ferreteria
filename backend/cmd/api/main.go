@@ -100,8 +100,22 @@ func main() {
 	authHandler :=
 		handlers.NewAuthHandler(authRepository)
 
+	userAdminRepository :=
+		repository.NewUserAdminRepository(db)
+
+	userAdminHandler :=
+		handlers.NewUserAdminHandler(
+			userAdminRepository,
+		)
+
 	requireAuthentication :=
 		middleware.RequireAuthentication(authRepository)
+
+	requireUserAdminAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+		)
 
 	requireDashboardAccess :=
 		middleware.RequireAuthentication(
@@ -230,6 +244,42 @@ func main() {
 		requireAuthentication(
 			http.HandlerFunc(
 				authHandler.Logout,
+			),
+		),
+	)
+
+	router.Handle(
+		"GET /api/v1/roles",
+		requireUserAdminAccess(
+			http.HandlerFunc(
+				userAdminHandler.ListRoles,
+			),
+		),
+	)
+
+	router.Handle(
+		"GET /api/v1/usuarios",
+		requireUserAdminAccess(
+			http.HandlerFunc(
+				userAdminHandler.List,
+			),
+		),
+	)
+
+	router.Handle(
+		"GET /api/v1/usuarios/{id}",
+		requireUserAdminAccess(
+			http.HandlerFunc(
+				userAdminHandler.Get,
+			),
+		),
+	)
+
+	router.Handle(
+		"POST /api/v1/usuarios",
+		requireUserAdminAccess(
+			http.HandlerFunc(
+				userAdminHandler.Create,
 			),
 		),
 	)
