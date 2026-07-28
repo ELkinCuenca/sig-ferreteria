@@ -285,6 +285,33 @@ func main() {
 	)
 
 	router.Handle(
+		"PATCH /api/v1/usuarios/{id}/estado",
+		requireUserAdminAccess(
+			http.HandlerFunc(
+				userAdminHandler.UpdateState,
+			),
+		),
+	)
+
+	router.Handle(
+		"PATCH /api/v1/usuarios/{id}/desbloquear",
+		requireUserAdminAccess(
+			http.HandlerFunc(
+				userAdminHandler.Unlock,
+			),
+		),
+	)
+
+	router.Handle(
+		"PATCH /api/v1/usuarios/{id}/contrasena",
+		requireUserAdminAccess(
+			http.HandlerFunc(
+				userAdminHandler.ResetPassword,
+			),
+		),
+	)
+
+	router.Handle(
 		"GET /api/v1/productos",
 		requireProductReadAccess(
 			http.HandlerFunc(
