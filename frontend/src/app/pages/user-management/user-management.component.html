@@ -194,7 +194,7 @@
 
             <select formControlName="id_rol">
               @for (role of roles(); track role.id_rol) {
-                <option [value]="role.id_rol">
+                <option [ngValue]="role.id_rol">
                   {{ role.nombre }}
                 </option>
               }
@@ -297,7 +297,7 @@
 
               <select formControlName="id_rol">
                 @for (role of roles(); track role.id_rol) {
-                  <option [value]="role.id_rol">
+                  <option [ngValue]="role.id_rol">
                     {{ role.nombre }}
                   </option>
                 }

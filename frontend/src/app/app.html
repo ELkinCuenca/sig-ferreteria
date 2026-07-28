@@ -31,22 +31,20 @@
             <span class="nav-icon">P</span>
             Productos
           </a>
+        }
 
-          @if (session.hasAnyRole(['ADMINISTRADOR', 'BODEGUERO', 'GERENTE'])) {
-            <a routerLink="/inventario" routerLinkActive="active-link">
-              <span class="nav-icon"> I </span>
+        @if (session.hasAnyRole(['ADMINISTRADOR', 'BODEGUERO', 'GERENTE'])) {
+          <a routerLink="/inventario" routerLinkActive="active-link">
+            <span class="nav-icon">I</span>
+            Inventario
+          </a>
+        }
 
-              Inventario
-            </a>
-          }
-
-          @if (session.hasAnyRole(['ADMINISTRADOR'])) {
-            <a routerLink="/usuarios" routerLinkActive="active-link">
-              <span class="nav-icon"> U </span>
-
-              Usuarios
-            </a>
-          }
+        @if (session.hasAnyRole(['ADMINISTRADOR'])) {
+          <a routerLink="/usuarios" routerLinkActive="active-link">
+            <span class="nav-icon">U</span>
+            Usuarios
+          </a>
         }
 
         @if (session.hasAnyRole(['ADMINISTRADOR', 'VENDEDOR'])) {

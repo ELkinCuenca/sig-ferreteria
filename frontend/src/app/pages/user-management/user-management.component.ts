@@ -200,7 +200,7 @@ export class UserManagementComponent implements OnInit {
     }
 
     const payload: CreateUserPayload = {
-      id_rol: formValue.id_rol,
+      id_rol: Number(formValue.id_rol),
 
       nombre_usuario: formValue.nombre_usuario.trim().toLowerCase(),
 
@@ -260,7 +260,7 @@ export class UserManagementComponent implements OnInit {
     const formValue = this.editForm.getRawValue();
 
     const payload: UpdateUserPayload = {
-      id_rol: formValue.id_rol,
+      id_rol: Number(formValue.id_rol),
 
       nombres: formValue.nombres.trim(),
 
