@@ -276,6 +276,15 @@ func main() {
 	)
 
 	router.Handle(
+		"PATCH /api/v1/usuarios/{id}",
+		requireUserAdminAccess(
+			http.HandlerFunc(
+				userAdminHandler.Update,
+			),
+		),
+	)
+
+	router.Handle(
 		"POST /api/v1/usuarios",
 		requireUserAdminAccess(
 			http.HandlerFunc(
