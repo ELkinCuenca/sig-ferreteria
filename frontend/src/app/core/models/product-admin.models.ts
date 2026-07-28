@@ -1,5 +1,9 @@
 export type ProductState = 'A' | 'I';
 
+export type ProductStateFilter = ProductState | 'TODOS';
+
+export type DecimalValue = number | string;
+
 export type InventoryAdjustmentType = 'POSITIVO' | 'NEGATIVO';
 
 export type InventoryMovementType =
@@ -13,8 +17,8 @@ export type InventoryMovementType =
 export interface ProductCategory {
   id_categoria: number;
   nombre: string;
-  descripcion?: string;
-  estado: ProductState;
+  descripcion?: string | null;
+  estado?: string;
 }
 
 export interface CategoryListResponse {
@@ -23,33 +27,68 @@ export interface CategoryListResponse {
   categorias: ProductCategory[];
 }
 
+export interface ProductSummary {
+  id_producto: number;
+
+  codigo: string;
+  nombre: string;
+  categoria: string;
+  unidad_medida: string;
+  estado: ProductState;
+
+  precio_compra: DecimalValue;
+  precio_venta: DecimalValue;
+  margen_unitario: DecimalValue;
+
+  stock_actual: DecimalValue;
+  stock_reservado: DecimalValue;
+  stock_disponible: DecimalValue;
+  stock_minimo: DecimalValue;
+
+  estado_stock: string;
+}
+
+export interface ProductAdminListResponse {
+  status: string;
+  total: number;
+
+  filtro_stock_bajo: boolean;
+  filtro_estado: ProductStateFilter;
+
+  productos: ProductSummary[];
+}
+
 export interface ProductDetail {
   id_producto: number;
   id_categoria: number;
 
+  categoria: string;
   codigo: string;
   nombre: string;
-  descripcion?: string;
-
-  categoria: string;
+  descripcion?: string | null;
   unidad_medida: string;
+
+  precio_compra: DecimalValue;
+  precio_venta: DecimalValue;
+
+  stock_minimo: DecimalValue;
+  stock_actual: DecimalValue;
+  stock_reservado: DecimalValue;
+  stock_disponible: DecimalValue;
+
+  ubicacion?: string | null;
   estado: ProductState;
-  ubicacion?: string;
 
-  precio_compra: string;
-  precio_venta: string;
-  margen_unitario: string;
-
-  stock_actual: string;
-  stock_reservado: string;
-  stock_disponible: string;
-  stock_minimo: string;
-
-  estado_stock: string;
-
-  fecha_creacion: string;
-  fecha_actualizacion: string;
+  fecha_creacion?: string;
+  fecha_actualizacion?: string;
 }
+
+export interface ProductDetailEnvelope {
+  status: string;
+  producto: ProductDetail;
+}
+
+export type ProductDetailApiResponse = ProductDetail | ProductDetailEnvelope;
 
 export interface CreateProductPayload {
   id_categoria: number;
@@ -57,15 +96,15 @@ export interface CreateProductPayload {
   codigo: string;
   nombre: string;
   descripcion?: string;
-
   unidad_medida: string;
+
+  precio_compra: number;
+  precio_venta: number;
+
+  stock_minimo: number;
+  stock_inicial: number;
+
   ubicacion?: string;
-
-  precio_compra: string;
-  precio_venta: string;
-
-  stock_minimo: string;
-  stock_inicial: string;
 }
 
 export interface UpdateProductPayload {
@@ -73,13 +112,13 @@ export interface UpdateProductPayload {
 
   nombre: string;
   descripcion?: string;
-
   unidad_medida: string;
-  ubicacion?: string;
 
-  precio_compra: string;
-  precio_venta: string;
-  stock_minimo: string;
+  precio_compra: number;
+  precio_venta: number;
+
+  stock_minimo: number;
+  ubicacion?: string;
 }
 
 export interface UpdateProductStatePayload {
@@ -87,55 +126,41 @@ export interface UpdateProductStatePayload {
 }
 
 export interface InventoryAdjustmentPayload {
-  codigo_producto: string;
+  codigo: string;
   tipo_ajuste: InventoryAdjustmentType;
-  cantidad: string;
+  cantidad: number;
   motivo: string;
 }
 
 export interface InventoryAdjustmentResult {
-  status: string;
-  id_movimiento: number;
+  status?: string;
 
-  codigo_producto: string;
-  producto: string;
-  tipo_movimiento: InventoryMovementType;
+  codigo: string;
+  tipo_ajuste: InventoryAdjustmentType;
 
-  cantidad: string;
-  stock_anterior: string;
-  stock_nuevo: string;
-  stock_reservado: string;
-  stock_disponible: string;
-  stock_minimo: string;
+  cantidad: DecimalValue;
+  stock_anterior: DecimalValue;
+  stock_nuevo: DecimalValue;
 
-  estado_stock: string;
-  resultado_alerta: string;
-
-  motivo: string;
-  fecha_movimiento: string;
+  movimiento?: InventoryMovement;
 }
 
 export interface InventoryMovement {
   id_movimiento: number;
-  id_producto: number;
+  id_producto?: number;
 
   codigo_producto: string;
   producto: string;
+
   tipo_movimiento: InventoryMovementType;
 
-  cantidad: string;
-  stock_anterior: string;
-  stock_nuevo: string;
+  cantidad: DecimalValue;
+  stock_anterior: DecimalValue;
+  stock_nuevo: DecimalValue;
 
-  motivo?: string;
+  motivo?: string | null;
+  usuario?: string | null;
 
-  id_usuario?: number;
-  usuario: string;
-
-  id_venta?: number;
-  id_solicitud_reposicion?: number;
-
-  referencia?: string;
   fecha_movimiento: string;
 }
 
@@ -146,7 +171,12 @@ export interface InventoryMovementListResponse {
 }
 
 export interface InventoryMovementFilters {
-  limite?: number;
   codigo?: string;
   tipo?: InventoryMovementType | '';
+  limite?: number;
+}
+
+export interface ProductApiErrorResponse {
+  status: string;
+  message: string;
 }

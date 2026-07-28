@@ -1,35 +1,526 @@
 <section class="inventory-page">
-  <header>
+  <header class="page-header">
     <div>
-      <p class="eyebrow">Gestión transaccional</p>
+      <p class="eyebrow">Inventario centralizado</p>
 
-      <h1>Productos e inventario</h1>
+      <h1>Administración de productos</h1>
 
-      <p>Administración del catálogo, ajustes de existencias e historial de movimientos.</p>
+      <p class="subtitle">
+        Consulta existencias, registra productos y controla su estado comercial.
+      </p>
     </div>
 
-    <button type="button" [disabled]="loading()" (click)="loadCategories()">
-      {{ loading() ? 'Actualizando...' : 'Actualizar' }}
-    </button>
+    <div class="header-actions">
+      <button type="button" class="button-secondary" [disabled]="loading()" (click)="loadData()">
+        {{ loading() ? 'Actualizando...' : 'Actualizar' }}
+      </button>
+
+      @if (canAdmin()) {
+        <button type="button" class="button-primary" (click)="startCreate()">Nuevo producto</button>
+      }
+    </div>
   </header>
 
   @if (errorMessage()) {
-    <div class="message-error" role="alert">
+    <div class="message message-error" role="alert">
       {{ errorMessage() }}
     </div>
   }
 
-  <article class="status-card">
-    <span> Categorías activas </span>
+  @if (successMessage()) {
+    <div class="message message-success" role="status">
+      {{ successMessage() }}
+    </div>
+  }
 
-    <strong>
-      {{ categories().length }}
-    </strong>
+  <section class="summary-grid">
+    <article>
+      <span> Productos consultados </span>
 
-    @if (loading()) {
-      <small> Consultando API... </small>
-    } @else {
-      <small> Conexión administrativa disponible </small>
+      <strong>
+        {{ products().length }}
+      </strong>
+    </article>
+
+    <article>
+      <span> Activos </span>
+
+      <strong>
+        {{ activeProducts() }}
+      </strong>
+    </article>
+
+    <article>
+      <span> Inactivos </span>
+
+      <strong>
+        {{ inactiveProducts() }}
+      </strong>
+    </article>
+
+    <article>
+      <span> Stock crítico </span>
+
+      <strong>
+        {{ lowStockProducts() }}
+      </strong>
+    </article>
+
+    <article>
+      <span> Valor a costo </span>
+
+      <strong class="money-value">
+        {{ formatMoney(inventoryCost()) }}
+      </strong>
+    </article>
+  </section>
+
+  <section class="filters">
+    <label>
+      Buscar producto
+
+      <input
+        type="search"
+        [value]="searchTerm()"
+        placeholder="Código, nombre o categoría"
+        (input)="updateSearch($event)"
+      />
+    </label>
+
+    @if (canAdmin()) {
+      <label>
+        Estado lógico
+
+        <select [value]="stateFilter()" (change)="updateStateFilter($event)">
+          <option value="TODOS">Todos</option>
+
+          <option value="A">Activos</option>
+
+          <option value="I">Inactivos</option>
+        </select>
+      </label>
     }
-  </article>
+
+    <button type="button" class="button-secondary clear-button" (click)="clearFilters()">
+      Limpiar filtros
+    </button>
+  </section>
+
+  <section class="management-grid">
+    <article class="panel product-list">
+      <div class="panel-heading">
+        <div>
+          <h2>Productos</h2>
+
+          <p>
+            {{ filteredProducts().length }}
+            registros visibles
+          </p>
+        </div>
+      </div>
+
+      @if (loading()) {
+        <div class="empty-state">Consultando productos...</div>
+      } @else if (filteredProducts().length === 0) {
+        <div class="empty-state">No existen productos para los filtros seleccionados.</div>
+      } @else {
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+
+                <th>Categoría</th>
+
+                <th>Estado</th>
+
+                <th>Disponible</th>
+
+                <th>Precio</th>
+
+                <th>Acción</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              @for (product of filteredProducts(); track product.id_producto) {
+                <tr [class.inactive-row]="product.estado === 'I'">
+                  <td>
+                    <div class="product-identity">
+                      <strong>
+                        {{ product.nombre }}
+                      </strong>
+
+                      <span>
+                        {{ product.codigo }}
+                      </span>
+
+                      <small>
+                        {{ product.unidad_medida }}
+                      </small>
+                    </div>
+                  </td>
+
+                  <td>
+                    {{ product.categoria }}
+                  </td>
+
+                  <td>
+                    <div class="badge-stack">
+                      <span
+                        class="badge"
+                        [class.state-active]="product.estado === 'A'"
+                        [class.state-inactive]="product.estado === 'I'"
+                      >
+                        {{ stateLabel(product.estado) }}
+                      </span>
+
+                      <span class="badge" [class]="stockClass(product)">
+                        {{ stockLabel(product) }}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td>
+                    <strong>
+                      {{ formatQuantity(product.stock_disponible) }}
+                    </strong>
+
+                    <small class="stock-minimum">
+                      Mínimo:
+                      {{ formatQuantity(product.stock_minimo) }}
+                    </small>
+                  </td>
+
+                  <td>
+                    {{ formatMoney(product.precio_venta) }}
+                  </td>
+
+                  <td>
+                    <button type="button" class="action-button" (click)="openProduct(product)">
+                      {{ canAdmin() ? 'Gestionar' : 'Consultar' }}
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </article>
+
+    <aside class="panel editor-panel">
+      @if (editorMode() === 'create' && canAdmin()) {
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Registro maestro</p>
+
+            <h2>Nuevo producto</h2>
+          </div>
+
+          <button type="button" class="text-button" (click)="cancelEditor()">Cancelar</button>
+        </div>
+
+        <form [formGroup]="createForm" (ngSubmit)="submitCreate()">
+          <div class="two-columns">
+            <label>
+              Código
+
+              <input type="text" formControlName="codigo" maxlength="30" placeholder="PROD-001" />
+
+              <small> Se guardará en mayúsculas. </small>
+            </label>
+
+            <label>
+              Categoría
+
+              <select formControlName="id_categoria">
+                @for (category of categories(); track category.id_categoria) {
+                  <option [ngValue]="category.id_categoria">
+                    {{ category.nombre }}
+                  </option>
+                }
+              </select>
+            </label>
+          </div>
+
+          <label>
+            Nombre
+
+            <input type="text" formControlName="nombre" maxlength="150" />
+          </label>
+
+          <label>
+            Descripción
+
+            <textarea formControlName="descripcion" maxlength="500" rows="3"></textarea>
+          </label>
+
+          <div class="two-columns">
+            <label>
+              Unidad de medida
+
+              <input
+                type="text"
+                formControlName="unidad_medida"
+                maxlength="30"
+                placeholder="UNIDAD"
+              />
+            </label>
+
+            <label>
+              Ubicación
+
+              <input
+                type="text"
+                formControlName="ubicacion"
+                maxlength="100"
+                placeholder="Pasillo A - Estante 2"
+              />
+            </label>
+          </div>
+
+          <div class="two-columns">
+            <label>
+              Precio de compra
+
+              <input type="number" formControlName="precio_compra" min="0" step="0.01" />
+            </label>
+
+            <label>
+              Precio de venta
+
+              <input type="number" formControlName="precio_venta" min="0" step="0.01" />
+            </label>
+          </div>
+
+          <div class="two-columns">
+            <label>
+              Stock mínimo
+
+              <input type="number" formControlName="stock_minimo" min="0" step="0.001" />
+            </label>
+
+            <label>
+              Stock inicial
+
+              <input type="number" formControlName="stock_inicial" min="0" step="0.001" />
+            </label>
+          </div>
+
+          <button type="submit" class="button-primary submit-button" [disabled]="saving()">
+            {{ saving() ? 'Creando...' : 'Crear producto' }}
+          </button>
+        </form>
+      } @else if (loadingDetail()) {
+        <div class="empty-state">Consultando detalle...</div>
+      } @else if (selectedProduct(); as product) {
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">
+              {{ product.codigo }}
+            </p>
+
+            <h2>
+              {{ product.nombre }}
+            </h2>
+          </div>
+
+          @if (canAdmin()) {
+            <button
+              type="button"
+              class="state-action"
+              [class.danger-action]="product.estado === 'A'"
+              [class.success-action]="product.estado === 'I'"
+              [disabled]="actionCode() === product.codigo"
+              (click)="changeProductState()"
+            >
+              {{ product.estado === 'A' ? 'Desactivar' : 'Reactivar' }}
+            </button>
+          }
+        </div>
+
+        @if (canAdmin()) {
+          <form [formGroup]="editForm" (ngSubmit)="submitEdit()">
+            <label>
+              Código
+
+              <input type="text" [value]="product.codigo" disabled />
+
+              <small> El código no puede modificarse. </small>
+            </label>
+
+            <label>
+              Categoría
+
+              <select formControlName="id_categoria">
+                @for (category of categories(); track category.id_categoria) {
+                  <option [ngValue]="category.id_categoria">
+                    {{ category.nombre }}
+                  </option>
+                }
+              </select>
+
+              <small>
+                {{ categoryDescription(editForm.controls.id_categoria.value) }}
+              </small>
+            </label>
+
+            <label>
+              Nombre
+
+              <input type="text" formControlName="nombre" maxlength="150" />
+            </label>
+
+            <label>
+              Descripción
+
+              <textarea formControlName="descripcion" maxlength="500" rows="3"></textarea>
+            </label>
+
+            <div class="two-columns">
+              <label>
+                Unidad de medida
+
+                <input type="text" formControlName="unidad_medida" maxlength="30" />
+              </label>
+
+              <label>
+                Ubicación
+
+                <input type="text" formControlName="ubicacion" maxlength="100" />
+              </label>
+            </div>
+
+            <div class="two-columns">
+              <label>
+                Precio de compra
+
+                <input type="number" formControlName="precio_compra" min="0" step="0.01" />
+              </label>
+
+              <label>
+                Precio de venta
+
+                <input type="number" formControlName="precio_venta" min="0" step="0.01" />
+              </label>
+            </div>
+
+            <label>
+              Stock mínimo
+
+              <input type="number" formControlName="stock_minimo" min="0" step="0.001" />
+
+              <small> El stock actual se modifica mediante ajustes de inventario. </small>
+            </label>
+
+            <section class="stock-details">
+              <div>
+                <span> Stock actual </span>
+
+                <strong>
+                  {{ formatQuantity(product.stock_actual) }}
+                </strong>
+              </div>
+
+              <div>
+                <span> Reservado </span>
+
+                <strong>
+                  {{ formatQuantity(product.stock_reservado) }}
+                </strong>
+              </div>
+
+              <div>
+                <span> Disponible </span>
+
+                <strong>
+                  {{ formatQuantity(product.stock_disponible) }}
+                </strong>
+              </div>
+            </section>
+
+            <button type="submit" class="button-primary submit-button" [disabled]="saving()">
+              {{ saving() ? 'Guardando...' : 'Guardar cambios' }}
+            </button>
+          </form>
+        } @else {
+          <section class="read-only-detail">
+            <div>
+              <span> Categoría </span>
+
+              <strong>
+                {{ product.categoria }}
+              </strong>
+            </div>
+
+            <div>
+              <span> Descripción </span>
+
+              <strong>
+                {{ product.descripcion || 'Sin descripción' }}
+              </strong>
+            </div>
+
+            <div>
+              <span> Unidad </span>
+
+              <strong>
+                {{ product.unidad_medida }}
+              </strong>
+            </div>
+
+            <div>
+              <span> Ubicación </span>
+
+              <strong>
+                {{ product.ubicacion || 'Sin ubicación' }}
+              </strong>
+            </div>
+
+            <div>
+              <span> Precio de compra </span>
+
+              <strong>
+                {{ formatMoney(product.precio_compra) }}
+              </strong>
+            </div>
+
+            <div>
+              <span> Precio de venta </span>
+
+              <strong>
+                {{ formatMoney(product.precio_venta) }}
+              </strong>
+            </div>
+
+            <div>
+              <span> Stock actual </span>
+
+              <strong>
+                {{ formatQuantity(product.stock_actual) }}
+              </strong>
+            </div>
+
+            <div>
+              <span> Stock disponible </span>
+
+              <strong>
+                {{ formatQuantity(product.stock_disponible) }}
+              </strong>
+            </div>
+          </section>
+        }
+      } @else {
+        <div class="empty-state">
+          Selecciona un producto para consultar sus datos.
+
+          @if (canAdmin()) {
+            <br />
+            También puedes registrar un nuevo producto.
+          }
+        </div>
+      }
+    </aside>
+  </section>
 </section>
