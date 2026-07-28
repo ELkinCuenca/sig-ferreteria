@@ -39,6 +39,14 @@
               Inventario
             </a>
           }
+
+          @if (session.hasAnyRole(['ADMINISTRADOR'])) {
+            <a routerLink="/usuarios" routerLinkActive="active-link">
+              <span class="nav-icon"> U </span>
+
+              Usuarios
+            </a>
+          }
         }
 
         @if (session.hasAnyRole(['ADMINISTRADOR', 'VENDEDOR'])) {

@@ -1,0 +1,435 @@
+<section class="user-page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Seguridad y acceso</p>
+
+      <h1>Administración de usuarios</h1>
+
+      <p class="header-description">
+        Crea cuentas, asigna roles, controla su estado y administra bloqueos y contraseñas.
+      </p>
+    </div>
+
+    <div class="header-actions">
+      <button type="button" class="button-secondary" [disabled]="loading()" (click)="loadData()">
+        {{ loading() ? 'Actualizando...' : 'Actualizar' }}
+      </button>
+
+      <button type="button" class="button-primary" (click)="startCreate()">Nuevo usuario</button>
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="message message-error" role="alert">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  @if (successMessage()) {
+    <div class="message message-success" role="status">
+      {{ successMessage() }}
+    </div>
+  }
+
+  <section class="summary-grid">
+    <article class="summary-card">
+      <span> Total de usuarios </span>
+
+      <strong>
+        {{ users().length }}
+      </strong>
+    </article>
+
+    <article class="summary-card">
+      <span> Cuentas activas </span>
+
+      <strong>
+        {{ activeUsers() }}
+      </strong>
+    </article>
+
+    <article class="summary-card">
+      <span> Cuentas bloqueadas </span>
+
+      <strong>
+        {{ blockedUsers() }}
+      </strong>
+    </article>
+
+    <article class="summary-card">
+      <span> Administradores </span>
+
+      <strong>
+        {{ administratorUsers() }}
+      </strong>
+    </article>
+  </section>
+
+  <section class="management-grid">
+    <article class="panel users-panel">
+      <div class="panel-heading">
+        <div>
+          <h2>Usuarios registrados</h2>
+
+          <p>Selecciona una cuenta para editarla o ejecutar acciones.</p>
+        </div>
+      </div>
+
+      @if (loading()) {
+        <div class="empty-state">Consultando usuarios...</div>
+      } @else if (users().length === 0) {
+        <div class="empty-state">No existen usuarios registrados.</div>
+      } @else {
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuario</th>
+
+                <th>Rol</th>
+
+                <th>Estado</th>
+
+                <th>Intentos</th>
+
+                <th>Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              @for (user of users(); track user.id_usuario) {
+                <tr>
+                  <td>
+                    <div class="user-identity">
+                      <strong>
+                        {{ user.nombre_usuario }}
+                      </strong>
+
+                      <span>
+                        {{ user.nombres }}
+                        {{ user.apellidos }}
+                      </span>
+
+                      <small>
+                        {{ user.correo }}
+                      </small>
+                    </div>
+                  </td>
+
+                  <td>
+                    <span class="role-badge">
+                      {{ user.rol }}
+                    </span>
+                  </td>
+
+                  <td>
+                    <span
+                      class="state-badge"
+                      [class.state-active]="user.estado === 'ACTIVO'"
+                      [class.state-inactive]="user.estado === 'INACTIVO'"
+                      [class.state-blocked]="user.estado === 'BLOQUEADO'"
+                    >
+                      {{ stateLabel(user.estado) }}
+                    </span>
+                  </td>
+
+                  <td>
+                    {{ user.intentos_fallidos }}
+                  </td>
+
+                  <td>
+                    <div class="row-actions">
+                      <button type="button" class="action-button" (click)="startEdit(user)">
+                        Editar
+                      </button>
+
+                      <button type="button" class="action-button" (click)="openPasswordReset(user)">
+                        Contraseña
+                      </button>
+
+                      @if (user.estado === 'BLOQUEADO') {
+                        <button
+                          type="button"
+                          class="action-button action-success"
+                          [disabled]="actionUserId() === user.id_usuario"
+                          (click)="unlockUser(user)"
+                        >
+                          Desbloquear
+                        </button>
+                      } @else {
+                        <button
+                          type="button"
+                          class="action-button"
+                          [class.action-danger]="user.estado === 'ACTIVO'"
+                          [class.action-success]="user.estado === 'INACTIVO'"
+                          [disabled]="actionUserId() === user.id_usuario"
+                          (click)="changeState(user)"
+                        >
+                          {{ user.estado === 'ACTIVO' ? 'Desactivar' : 'Activar' }}
+                        </button>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </article>
+
+    <aside class="panel editor-panel">
+      @if (editorMode() === 'create') {
+        <div class="panel-heading">
+          <div>
+            <p class="panel-kicker">Nueva cuenta</p>
+
+            <h2>Crear usuario</h2>
+          </div>
+        </div>
+
+        <form [formGroup]="createForm" (ngSubmit)="submitCreate()">
+          <label>
+            Rol
+
+            <select formControlName="id_rol">
+              @for (role of roles(); track role.id_rol) {
+                <option [value]="role.id_rol">
+                  {{ role.nombre }}
+                </option>
+              }
+            </select>
+
+            <small>
+              {{ roleDescription(createForm.controls.id_rol.value) }}
+            </small>
+          </label>
+
+          <label>
+            Nombre de usuario
+
+            <input
+              type="text"
+              formControlName="nombre_usuario"
+              maxlength="50"
+              autocomplete="off"
+              placeholder="usuario.apellido"
+            />
+
+            <small>
+              Mínimo 3 caracteres. Usa letras minúsculas, números, punto, guion o guion bajo.
+            </small>
+          </label>
+
+          <div class="two-columns">
+            <label>
+              Nombres
+
+              <input type="text" formControlName="nombres" maxlength="100" />
+            </label>
+
+            <label>
+              Apellidos
+
+              <input type="text" formControlName="apellidos" maxlength="100" />
+            </label>
+          </div>
+
+          <label>
+            Correo electrónico
+
+            <input type="email" formControlName="correo" maxlength="150" autocomplete="off" />
+          </label>
+
+          <label>
+            Contraseña temporal
+
+            <input
+              type="password"
+              formControlName="contrasena"
+              maxlength="72"
+              autocomplete="new-password"
+            />
+
+            <small> Mínimo 12 caracteres, mayúscula, minúscula, número y símbolo. </small>
+          </label>
+
+          <label>
+            Confirmar contraseña
+
+            <input
+              type="password"
+              formControlName="confirmar_contrasena"
+              maxlength="72"
+              autocomplete="new-password"
+            />
+          </label>
+
+          <button type="submit" class="button-primary submit-button" [disabled]="saving()">
+            {{ saving() ? 'Creando...' : 'Crear usuario' }}
+          </button>
+        </form>
+      } @else {
+        @if (selectedUser(); as user) {
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Cuenta seleccionada</p>
+
+              <h2>
+                {{ user.nombre_usuario }}
+              </h2>
+            </div>
+
+            <button type="button" class="text-button" (click)="startCreate()">Cancelar</button>
+          </div>
+
+          <form [formGroup]="editForm" (ngSubmit)="submitEdit()">
+            <label>
+              Nombre de usuario
+
+              <input type="text" [value]="user.nombre_usuario" disabled />
+
+              <small> El identificador de acceso no puede modificarse. </small>
+            </label>
+
+            <label>
+              Rol
+
+              <select formControlName="id_rol">
+                @for (role of roles(); track role.id_rol) {
+                  <option [value]="role.id_rol">
+                    {{ role.nombre }}
+                  </option>
+                }
+              </select>
+
+              <small> Cambiar el rol revocará las sesiones activas de la cuenta. </small>
+            </label>
+
+            <div class="two-columns">
+              <label>
+                Nombres
+
+                <input type="text" formControlName="nombres" maxlength="100" />
+              </label>
+
+              <label>
+                Apellidos
+
+                <input type="text" formControlName="apellidos" maxlength="100" />
+              </label>
+            </div>
+
+            <label>
+              Correo electrónico
+
+              <input type="email" formControlName="correo" maxlength="150" />
+            </label>
+
+            <section class="account-details">
+              <div>
+                <span> Estado </span>
+
+                <strong>
+                  {{ stateLabel(user.estado) }}
+                </strong>
+              </div>
+
+              <div>
+                <span> Último acceso </span>
+
+                <strong>
+                  {{ formatDate(user.ultimo_acceso) }}
+                </strong>
+              </div>
+
+              <div>
+                <span> Creación </span>
+
+                <strong>
+                  {{ formatDate(user.fecha_creacion) }}
+                </strong>
+              </div>
+            </section>
+
+            <button type="submit" class="button-primary submit-button" [disabled]="saving()">
+              {{ saving() ? 'Guardando...' : 'Guardar cambios' }}
+            </button>
+          </form>
+        }
+      }
+    </aside>
+  </section>
+
+  @if (passwordUser(); as user) {
+    <div class="modal-backdrop" (click)="closePasswordReset()">
+      <section
+        class="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="password-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="modal-heading">
+          <div>
+            <p class="panel-kicker">Seguridad de cuenta</p>
+
+            <h2 id="password-title">Restablecer contraseña</h2>
+
+            <p>
+              Usuario:
+              <strong>
+                {{ user.nombre_usuario }}
+              </strong>
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="modal-close"
+            aria-label="Cerrar"
+            (click)="closePasswordReset()"
+          >
+            ×
+          </button>
+        </div>
+
+        <form [formGroup]="passwordForm" (ngSubmit)="submitPasswordReset()">
+          <label>
+            Nueva contraseña
+
+            <input
+              type="password"
+              formControlName="contrasena"
+              maxlength="72"
+              autocomplete="new-password"
+            />
+
+            <small> Mínimo 12 caracteres, mayúscula, minúscula, número y símbolo. </small>
+          </label>
+
+          <label>
+            Confirmar contraseña
+
+            <input
+              type="password"
+              formControlName="confirmar_contrasena"
+              maxlength="72"
+              autocomplete="new-password"
+            />
+          </label>
+
+          <div class="modal-actions">
+            <button type="button" class="button-secondary" (click)="closePasswordReset()">
+              Cancelar
+            </button>
+
+            <button type="submit" class="button-primary" [disabled]="saving()">
+              {{ saving() ? 'Restableciendo...' : 'Restablecer' }}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  }
+</section>
