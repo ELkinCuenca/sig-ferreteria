@@ -16,15 +16,16 @@ import type {
   UpdateProductPayload,
 } from '../../core/models/product-admin.models';
 import { ProductAdminApiService } from '../../core/services/product-admin-api.service';
-
 type ProductEditorMode = 'create' | 'detail';
+
+import { InventoryOperationsComponent } from './components/inventory-operations/inventory-operations.component';
 
 @Component({
   selector: 'app-inventory-management',
 
   standalone: true,
 
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, InventoryOperationsComponent],
 
   templateUrl: './inventory-management.component.html',
 

@@ -1,0 +1,249 @@
+<section class="operations-section">
+  <header class="operations-heading">
+    <div>
+      <p class="eyebrow">Trazabilidad</p>
+
+      <h2>Operaciones de inventario</h2>
+
+      <p>Registra ajustes controlados y consulta el historial de movimientos.</p>
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="message message-error" role="alert">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  @if (successMessage()) {
+    <div class="message message-success" role="status">
+      {{ successMessage() }}
+    </div>
+  }
+
+  <div class="operations-grid" [class.history-only]="!canAdjust()">
+    @if (canAdjust()) {
+      <article class="operation-card">
+        <header>
+          <p class="card-kicker">Movimiento manual</p>
+
+          <h3>Ajustar existencias</h3>
+        </header>
+
+        <form [formGroup]="adjustmentForm" (ngSubmit)="submitAdjustment()">
+          <label>
+            Producto
+
+            <select formControlName="codigo">
+              <option value="" disabled>Selecciona un producto</option>
+
+              @for (product of activeProducts(); track product.id_producto) {
+                <option [value]="product.codigo">
+                  {{ product.codigo }} —
+                  {{ product.nombre }}
+                </option>
+              }
+            </select>
+          </label>
+
+          @if (selectedAdjustmentProduct(); as product) {
+            <section class="stock-summary">
+              <div>
+                <span> Actual </span>
+
+                <strong>
+                  {{ formatQuantity(product.stock_actual) }}
+                </strong>
+              </div>
+
+              <div>
+                <span> Reservado </span>
+
+                <strong>
+                  {{ formatQuantity(product.stock_reservado) }}
+                </strong>
+              </div>
+
+              <div>
+                <span> Disponible </span>
+
+                <strong>
+                  {{ formatQuantity(product.stock_disponible) }}
+                </strong>
+              </div>
+            </section>
+          }
+
+          <div class="two-columns">
+            <label>
+              Tipo de ajuste
+
+              <select formControlName="tipo_ajuste">
+                <option value="POSITIVO">Ajuste positivo</option>
+
+                <option value="NEGATIVO">Ajuste negativo</option>
+              </select>
+            </label>
+
+            <label>
+              Cantidad
+
+              <input type="number" formControlName="cantidad" min="0.001" step="0.001" />
+            </label>
+          </div>
+
+          <label>
+            Motivo
+
+            <textarea
+              formControlName="motivo"
+              maxlength="300"
+              rows="3"
+              placeholder="Explica la causa del ajuste"
+            ></textarea>
+
+            <small> El ajuste quedará registrado en auditoría y movimientos. </small>
+          </label>
+
+          <div class="warning">
+            Un ajuste negativo no puede dejar el stock actual por debajo del stock reservado.
+          </div>
+
+          <button
+            type="submit"
+            class="button-primary"
+            [disabled]="savingAdjustment() || activeProducts().length === 0"
+          >
+            {{ savingAdjustment() ? 'Registrando...' : 'Registrar ajuste' }}
+          </button>
+        </form>
+      </article>
+    }
+
+    <article class="operation-card history-card">
+      <header class="history-heading">
+        <div>
+          <p class="card-kicker">Kardex</p>
+
+          <h3>Historial de movimientos</h3>
+        </div>
+
+        <strong class="movement-total">
+          {{ movements().length }}
+        </strong>
+      </header>
+
+      <form class="history-filters" [formGroup]="movementFilterForm" (ngSubmit)="loadMovements()">
+        <label>
+          Código
+
+          <input type="search" formControlName="codigo" maxlength="30" placeholder="PROD-001" />
+        </label>
+
+        <label>
+          Tipo
+
+          <select formControlName="tipo">
+            <option value="">Todos</option>
+
+            @for (item of movementTypes; track item.value) {
+              <option [value]="item.value">
+                {{ item.label }}
+              </option>
+            }
+          </select>
+        </label>
+
+        <label>
+          Límite
+
+          <input type="number" formControlName="limite" min="1" max="200" />
+        </label>
+
+        <div class="filter-actions">
+          <button type="submit" class="button-primary" [disabled]="loadingMovements()">
+            Consultar
+          </button>
+
+          <button type="button" class="button-secondary" (click)="resetMovementFilters()">
+            Limpiar
+          </button>
+        </div>
+      </form>
+
+      @if (loadingMovements()) {
+        <div class="empty-state">Consultando movimientos...</div>
+      } @else if (movements().length === 0) {
+        <div class="empty-state">No existen movimientos para los filtros seleccionados.</div>
+      } @else {
+        <div class="movement-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+
+                <th>Producto</th>
+
+                <th>Tipo</th>
+
+                <th>Cantidad</th>
+
+                <th>Stock</th>
+
+                <th>Usuario</th>
+
+                <th>Motivo</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              @for (movement of movements(); track movement.id_movimiento) {
+                <tr>
+                  <td>
+                    {{ formatDate(movement.fecha_movimiento) }}
+                  </td>
+
+                  <td>
+                    <strong>
+                      {{ movement.producto }}
+                    </strong>
+
+                    <small>
+                      {{ movement.codigo_producto }}
+                    </small>
+                  </td>
+
+                  <td>
+                    <span class="movement-badge" [class]="movementClass(movement.tipo_movimiento)">
+                      {{ movementLabel(movement.tipo_movimiento) }}
+                    </span>
+                  </td>
+
+                  <td>
+                    {{ formatQuantity(movement.cantidad) }}
+                  </td>
+
+                  <td>
+                    <span class="stock-transition">
+                      {{ formatQuantity(movement.stock_anterior) }}
+                      →
+                      {{ formatQuantity(movement.stock_nuevo) }}
+                    </span>
+                  </td>
+
+                  <td>
+                    {{ movement.usuario || 'Sistema' }}
+                  </td>
+
+                  <td>
+                    {{ movement.motivo || 'Sin detalle' }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </article>
+  </div>
+</section>
