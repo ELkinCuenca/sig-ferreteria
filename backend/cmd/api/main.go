@@ -90,6 +90,12 @@ func main() {
 	bpmHandler :=
 		handlers.NewBPMHandler(bpmRepository)
 
+	iotRepository :=
+		repository.NewIoTRepository(db)
+
+	iotHandler :=
+		handlers.NewIoTHandler(iotRepository)
+
 	authRepository :=
 		repository.NewAuthRepository(
 			db,
@@ -216,6 +222,27 @@ func main() {
 			authRepository,
 			"ADMINISTRADOR",
 			"BODEGUERO",
+		)
+
+	requireIoTReadAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+			"BODEGUERO",
+			"GERENTE",
+		)
+
+	requireIoTAttendAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
+			"BODEGUERO",
+		)
+
+	requireIoTConfigurationAccess :=
+		middleware.RequireAuthentication(
+			authRepository,
+			"ADMINISTRADOR",
 		)
 
 	router := http.NewServeMux()
@@ -541,6 +568,60 @@ func main() {
 		requireBPMDecisionAccess(
 			http.HandlerFunc(
 				bpmHandler.Close,
+			),
+		),
+	)
+
+	router.Handle(
+		"GET /api/v1/iot/resumen",
+		requireIoTReadAccess(
+			http.HandlerFunc(
+				iotHandler.Summary,
+			),
+		),
+	)
+
+	router.Handle(
+		"GET /api/v1/iot/lecturas",
+		requireIoTReadAccess(
+			http.HandlerFunc(
+				iotHandler.ListReadings,
+			),
+		),
+	)
+
+	router.Handle(
+		"GET /api/v1/iot/alertas",
+		requireIoTReadAccess(
+			http.HandlerFunc(
+				iotHandler.ListAlerts,
+			),
+		),
+	)
+
+	router.Handle(
+		"PATCH /api/v1/iot/alertas/{id}/atender",
+		requireIoTAttendAccess(
+			http.HandlerFunc(
+				iotHandler.AttendAlert,
+			),
+		),
+	)
+
+	router.Handle(
+		"GET /api/v1/iot/configuracion",
+		requireIoTReadAccess(
+			http.HandlerFunc(
+				iotHandler.GetConfiguration,
+			),
+		),
+	)
+
+	router.Handle(
+		"PATCH /api/v1/iot/configuracion",
+		requireIoTConfigurationAccess(
+			http.HandlerFunc(
+				iotHandler.UpdateConfiguration,
 			),
 		),
 	)

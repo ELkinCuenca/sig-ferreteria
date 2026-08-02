@@ -1,0 +1,23 @@
+[Unit]
+Description=API REST del Sistema de Información Gerencial SIGEFER
+Wants=network-online.target
+After=network-online.target container-sigefer-oracle.service
+Requires=container-sigefer-oracle.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=/home/elkin/SIGEFER/backend
+EnvironmentFile=/home/elkin/SIGEFER/backend/.env
+ExecStart=/home/elkin/SIGEFER/backend/bin/sigefer-api
+
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/home/elkin/SIGEFER/backend
+
+[Install]
+WantedBy=default.target
