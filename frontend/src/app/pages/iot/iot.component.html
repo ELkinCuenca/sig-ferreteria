@@ -1,0 +1,881 @@
+<section class="iot-page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Internet de las cosas</p>
+
+      <h1>Monitoreo ambiental de bodega</h1>
+
+      <p class="page-description">
+        Supervisión en tiempo real de temperatura, humedad, comunicación, señal Wi-Fi y alertas
+        generadas por el dispositivo ESP32.
+      </p>
+    </div>
+
+    <div class="header-actions">
+      @if (lastUpdated(); as updatedAt) {
+        <p class="last-update">
+          Última actualización:
+          <strong>
+            {{ dateLabel(updatedAt) }}
+          </strong>
+        </p>
+      }
+
+      <button
+        type="button"
+        class="secondary-button"
+        [disabled]="loading() || refreshing() || processingAlert() || savingConfiguration()"
+        (click)="refreshNow()"
+      >
+        @if (refreshing()) {
+          Actualizando...
+        } @else {
+          Actualizar ahora
+        }
+      </button>
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="message message-error" role="alert">
+      <span aria-hidden="true"> ! </span>
+
+      <p>
+        {{ errorMessage() }}
+      </p>
+
+      <button type="button" aria-label="Cerrar mensaje de error" (click)="errorMessage.set('')">
+        ×
+      </button>
+    </div>
+  }
+
+  @if (successMessage()) {
+    <div class="message message-success" role="status">
+      <span aria-hidden="true"> ✓ </span>
+
+      <p>
+        {{ successMessage() }}
+      </p>
+
+      <button type="button" aria-label="Cerrar mensaje de éxito" (click)="successMessage.set('')">
+        ×
+      </button>
+    </div>
+  }
+
+  @if (loading()) {
+    <section class="loading-panel" aria-live="polite">
+      <div class="loading-spinner"></div>
+
+      <p>Consultando telemetría y alertas...</p>
+    </section>
+  } @else if (summary(); as currentSummary) {
+    <section class="summary-grid" aria-label="Indicadores principales IoT">
+      @if (latestReading(); as reading) {
+        <article
+          [class]="
+            'metric-card ' +
+            metricClass(
+              metricState(
+                reading.temperatura_c,
+                currentSummary.configuracion.temperatura_min_c,
+                currentSummary.configuracion.temperatura_max_c
+              )
+            )
+          "
+        >
+          <div class="metric-heading">
+            <span class="metric-icon"> T </span>
+
+            <span
+              [class]="
+                'metric-status ' +
+                metricClass(
+                  metricState(
+                    reading.temperatura_c,
+                    currentSummary.configuracion.temperatura_min_c,
+                    currentSummary.configuracion.temperatura_max_c
+                  )
+                )
+              "
+            >
+              {{
+                metricStateLabel(
+                  metricState(
+                    reading.temperatura_c,
+                    currentSummary.configuracion.temperatura_min_c,
+                    currentSummary.configuracion.temperatura_max_c
+                  )
+                )
+              }}
+            </span>
+          </div>
+
+          <p class="metric-label">Temperatura</p>
+
+          <p class="metric-value">
+            {{ formatValue(reading.temperatura_c) }}
+            <span>°C</span>
+          </p>
+
+          <p class="metric-reference">
+            Rango:
+            {{ formatValue(currentSummary.configuracion.temperatura_min_c) }}
+            –
+            {{ formatValue(currentSummary.configuracion.temperatura_max_c) }}
+            °C
+          </p>
+        </article>
+
+        <article
+          [class]="
+            'metric-card ' +
+            metricClass(
+              metricState(
+                reading.humedad_pct,
+                currentSummary.configuracion.humedad_min_pct,
+                currentSummary.configuracion.humedad_max_pct
+              )
+            )
+          "
+        >
+          <div class="metric-heading">
+            <span class="metric-icon"> H </span>
+
+            <span
+              [class]="
+                'metric-status ' +
+                metricClass(
+                  metricState(
+                    reading.humedad_pct,
+                    currentSummary.configuracion.humedad_min_pct,
+                    currentSummary.configuracion.humedad_max_pct
+                  )
+                )
+              "
+            >
+              {{
+                metricStateLabel(
+                  metricState(
+                    reading.humedad_pct,
+                    currentSummary.configuracion.humedad_min_pct,
+                    currentSummary.configuracion.humedad_max_pct
+                  )
+                )
+              }}
+            </span>
+          </div>
+
+          <p class="metric-label">Humedad relativa</p>
+
+          <p class="metric-value">
+            {{ formatValue(reading.humedad_pct) }}
+            <span>%</span>
+          </p>
+
+          <p class="metric-reference">
+            Rango:
+            {{ formatValue(currentSummary.configuracion.humedad_min_pct) }}
+            –
+            {{ formatValue(currentSummary.configuracion.humedad_max_pct) }}
+            %
+          </p>
+        </article>
+
+        <article [class]="'metric-card ' + signalClass(reading.senal_wifi_dbm)">
+          <div class="metric-heading">
+            <span class="metric-icon"> W </span>
+
+            <span [class]="'metric-status ' + signalClass(reading.senal_wifi_dbm)">
+              {{ signalQuality(reading.senal_wifi_dbm) }}
+            </span>
+          </div>
+
+          <p class="metric-label">Señal Wi-Fi</p>
+
+          <p class="metric-value">
+            {{ reading.senal_wifi_dbm ?? '—' }}
+            <span>dBm</span>
+          </p>
+
+          <div class="signal-meter" aria-label="Calidad de señal Wi-Fi">
+            <span [style.width.%]="signalPercentage(reading.senal_wifi_dbm)"></span>
+          </div>
+        </article>
+
+        <article class="metric-card metric-neutral">
+          <div class="metric-heading">
+            <span class="metric-icon"> U </span>
+
+            <span class="metric-status metric-normal"> Operación </span>
+          </div>
+
+          <p class="metric-label">Tiempo activo</p>
+
+          <p class="metric-value uptime-value">
+            {{ uptimeLabel(reading.uptime_s) }}
+          </p>
+
+          <p class="metric-reference">
+            {{ reading.lecturas_validas }}
+            lecturas válidas
+          </p>
+        </article>
+      } @else {
+        <article class="metric-card metric-none">
+          <p class="metric-label">Telemetría</p>
+
+          <p class="metric-value">Sin datos</p>
+        </article>
+      }
+
+      <article
+        class="metric-card alert-summary-card"
+        [class.has-critical]="criticalPendingAlerts().length > 0"
+      >
+        <div class="metric-heading">
+          <span class="metric-icon"> A </span>
+
+          <span class="metric-status"> Pendientes </span>
+        </div>
+
+        <p class="metric-label">Alertas activas</p>
+
+        <p class="metric-value">
+          {{ currentSummary.alertas_pendientes }}
+        </p>
+
+        <p class="metric-reference">
+          {{ criticalPendingAlerts().length }}
+          críticas
+        </p>
+      </article>
+
+      <article class="metric-card metric-neutral">
+        <div class="metric-heading">
+          <span class="metric-icon"> L </span>
+
+          <span class="metric-status metric-normal"> Historial </span>
+        </div>
+
+        <p class="metric-label">Lecturas almacenadas</p>
+
+        <p class="metric-value">
+          {{ currentSummary.total_lecturas }}
+        </p>
+
+        <p class="metric-reference">Oracle Database</p>
+      </article>
+    </section>
+
+    <section class="device-panel panel">
+      <div class="panel-header">
+        <div>
+          <p class="section-eyebrow">Dispositivo conectado</p>
+
+          <h2>
+            {{ currentSummary.dispositivo.nombre }}
+          </h2>
+        </div>
+
+        <span
+          [class]="
+            'communication-badge ' +
+            communicationClass(currentSummary.dispositivo.estado_comunicacion)
+          "
+        >
+          {{ communicationLabel(currentSummary.dispositivo.estado_comunicacion) }}
+        </span>
+      </div>
+
+      <div class="device-details">
+        <div class="device-detail">
+          <span>Código</span>
+
+          <strong>
+            {{ currentSummary.dispositivo.codigo }}
+          </strong>
+        </div>
+
+        <div class="device-detail">
+          <span>Ubicación</span>
+
+          <strong>
+            {{ currentSummary.dispositivo.ubicacion || 'No registrada' }}
+          </strong>
+        </div>
+
+        <div class="device-detail">
+          <span>Tipo de sensor</span>
+
+          <strong>
+            {{ currentSummary.dispositivo.tipo_sensor }}
+          </strong>
+        </div>
+
+        <div class="device-detail">
+          <span>Estado del sensor</span>
+
+          <strong>
+            {{ currentSummary.dispositivo.ultimo_estado_sensor || 'Sin datos' }}
+          </strong>
+        </div>
+
+        <div class="device-detail">
+          <span>Dirección IP</span>
+
+          <strong>
+            {{ currentSummary.dispositivo.ultima_ip || 'Sin registro' }}
+          </strong>
+        </div>
+
+        <div class="device-detail">
+          <span>Última comunicación</span>
+
+          <strong>
+            {{ dateLabel(currentSummary.dispositivo.ultima_comunicacion) }}
+          </strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel alerts-panel">
+        <div class="panel-header panel-header-wrap">
+          <div>
+            <p class="section-eyebrow">Gestión operativa</p>
+
+            <h2>Alertas ambientales</h2>
+
+            <p class="panel-description">
+              Eventos activos y atendidos generados por el consumidor MQTT.
+            </p>
+          </div>
+
+          <div class="filter-group" aria-label="Filtrar alertas">
+            <button
+              type="button"
+              [class.active]="alertFilter() === 'TODAS'"
+              [attr.aria-pressed]="alertFilter() === 'TODAS'"
+              (click)="setAlertFilter('TODAS')"
+            >
+              Todas
+              <span>
+                {{ alerts().length }}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              [class.active]="alertFilter() === 'PENDIENTE'"
+              [attr.aria-pressed]="alertFilter() === 'PENDIENTE'"
+              (click)="setAlertFilter('PENDIENTE')"
+            >
+              Pendientes
+              <span>
+                {{ pendingAlerts().length }}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              [class.active]="alertFilter() === 'ATENDIDA'"
+              [attr.aria-pressed]="alertFilter() === 'ATENDIDA'"
+              (click)="setAlertFilter('ATENDIDA')"
+            >
+              Atendidas
+              <span>
+                {{ attendedAlerts().length }}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        @if (filteredAlerts().length === 0) {
+          <div class="empty-state">
+            <span aria-hidden="true"> ✓ </span>
+
+            <h3>No existen alertas en este filtro</h3>
+
+            <p>La lista se actualizará automáticamente cuando el consumidor detecte un evento.</p>
+          </div>
+        } @else {
+          <div class="alert-list">
+            @for (alert of filteredAlerts(); track alert.id_alerta_iot) {
+              <article [class]="'alert-item ' + alertStatusClass(alert.estado)">
+                <div class="alert-main">
+                  <div class="alert-heading">
+                    <span [class]="'severity-badge ' + alertSeverityClass(alert.severidad)">
+                      {{ alert.severidad }}
+                    </span>
+
+                    <span [class]="'alert-status ' + alertStatusClass(alert.estado)">
+                      {{ alert.estado }}
+                    </span>
+                  </div>
+
+                  <h3>
+                    {{ alertTypeLabel(alert.tipo_alerta) }}
+                  </h3>
+
+                  <p class="alert-message">
+                    {{ alert.mensaje }}
+                  </p>
+
+                  <div class="alert-values">
+                    @if (alert.valor_detectado !== null) {
+                      <span>
+                        Detectado:
+                        <strong>
+                          {{ formatValue(alert.valor_detectado) }}
+                        </strong>
+                      </span>
+                    }
+
+                    @if (alert.valor_limite !== null) {
+                      <span>
+                        Límite:
+                        <strong>
+                          {{ formatValue(alert.valor_limite) }}
+                        </strong>
+                      </span>
+                    }
+                  </div>
+
+                  <p class="alert-date">
+                    Generada:
+                    {{ dateLabel(alert.fecha_generacion) }}
+                  </p>
+                </div>
+
+                <div class="alert-actions">
+                  <button
+                    type="button"
+                    class="secondary-button compact-button"
+                    (click)="openAlert(alert)"
+                  >
+                    @if (alert.estado === 'PENDIENTE' && canAttendAlerts()) {
+                      Atender
+                    } @else {
+                      Ver detalle
+                    }
+                  </button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </article>
+
+      <article class="panel history-panel">
+        <div class="panel-header">
+          <div>
+            <p class="section-eyebrow">Telemetría reciente</p>
+
+            <h2>Historial de lecturas</h2>
+
+            <p class="panel-description">Últimos registros almacenados desde el ESP32.</p>
+          </div>
+
+          <span class="record-count">
+            {{ readings().length }}
+            registros
+          </span>
+        </div>
+
+        @if (readings().length === 0) {
+          <div class="empty-state">
+            <h3>Sin lecturas disponibles</h3>
+
+            <p>El historial aparecerá cuando el dispositivo publique telemetría.</p>
+          </div>
+        } @else {
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Secuencia</th>
+                  <th>Temperatura</th>
+                  <th>Humedad</th>
+                  <th>Wi-Fi</th>
+                  <th>Sensor</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                @for (reading of readings(); track reading.id_lectura) {
+                  <tr>
+                    <td>
+                      {{ dateLabel(reading.fecha_recepcion) }}
+                    </td>
+
+                    <td>#{{ reading.secuencia }}</td>
+
+                    <td>
+                      {{ formatValue(reading.temperatura_c) }}
+                      °C
+                    </td>
+
+                    <td>
+                      {{ formatValue(reading.humedad_pct) }}
+                      %
+                    </td>
+
+                    <td>
+                      <span [class]="'table-signal ' + signalClass(reading.senal_wifi_dbm)">
+                        {{ reading.senal_wifi_dbm ?? '—' }}
+                        dBm
+                      </span>
+                    </td>
+
+                    <td>
+                      <span class="sensor-state">
+                        {{ reading.estado_sensor }}
+                      </span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </article>
+    </section>
+
+    <section class="panel configuration-panel">
+      <div class="panel-header">
+        <div>
+          <p class="section-eyebrow">Umbrales operativos</p>
+
+          <h2>Configuración ambiental</h2>
+
+          <p class="panel-description">
+            Límites utilizados por el consumidor para generar alertas.
+          </p>
+        </div>
+
+        <span class="configuration-date">
+          Actualizada:
+          {{ dateLabel(currentSummary.configuracion.fecha_actualizacion) }}
+        </span>
+      </div>
+
+      @if (canConfigure()) {
+        <form
+          class="configuration-form"
+          [formGroup]="configurationForm"
+          (ngSubmit)="saveConfiguration()"
+        >
+          <fieldset [disabled]="savingConfiguration()">
+            <div class="form-grid">
+              <label>
+                <span> Temperatura mínima </span>
+
+                <div class="input-with-unit">
+                  <input type="number" step="0.1" formControlName="temperatura_min_c" />
+
+                  <span>°C</span>
+                </div>
+
+                @if (
+                  configurationForm.controls.temperatura_min_c.touched &&
+                  configurationForm.controls.temperatura_min_c.invalid
+                ) {
+                  <small> Ingrese un valor entre -50 y 100. </small>
+                }
+              </label>
+
+              <label>
+                <span> Temperatura máxima </span>
+
+                <div class="input-with-unit">
+                  <input type="number" step="0.1" formControlName="temperatura_max_c" />
+
+                  <span>°C</span>
+                </div>
+
+                @if (
+                  configurationForm.controls.temperatura_max_c.touched &&
+                  configurationForm.controls.temperatura_max_c.invalid
+                ) {
+                  <small> Ingrese un valor entre -50 y 100. </small>
+                }
+              </label>
+
+              <label>
+                <span> Humedad mínima </span>
+
+                <div class="input-with-unit">
+                  <input type="number" step="0.1" formControlName="humedad_min_pct" />
+
+                  <span>%</span>
+                </div>
+
+                @if (
+                  configurationForm.controls.humedad_min_pct.touched &&
+                  configurationForm.controls.humedad_min_pct.invalid
+                ) {
+                  <small> Ingrese un valor entre 0 y 100. </small>
+                }
+              </label>
+
+              <label>
+                <span> Humedad máxima </span>
+
+                <div class="input-with-unit">
+                  <input type="number" step="0.1" formControlName="humedad_max_pct" />
+
+                  <span>%</span>
+                </div>
+
+                @if (
+                  configurationForm.controls.humedad_max_pct.touched &&
+                  configurationForm.controls.humedad_max_pct.invalid
+                ) {
+                  <small> Ingrese un valor entre 0 y 100. </small>
+                }
+              </label>
+
+              <label class="communication-field">
+                <span> Tiempo máximo sin comunicación </span>
+
+                <div class="input-with-unit">
+                  <input type="number" step="1" formControlName="segundos_sin_comunicacion" />
+
+                  <span>seg</span>
+                </div>
+
+                @if (
+                  configurationForm.controls.segundos_sin_comunicacion.touched &&
+                  configurationForm.controls.segundos_sin_comunicacion.invalid
+                ) {
+                  <small> Ingrese entre 30 y 86400 segundos. </small>
+                }
+              </label>
+            </div>
+
+            <div class="form-actions">
+              <button
+                type="button"
+                class="secondary-button"
+                [disabled]="savingConfiguration() || !configurationForm.dirty"
+                (click)="resetConfigurationForm()"
+              >
+                Restablecer
+              </button>
+
+              <button
+                type="submit"
+                class="primary-button"
+                [disabled]="
+                  savingConfiguration() || configurationForm.invalid || !configurationForm.dirty
+                "
+              >
+                @if (savingConfiguration()) {
+                  Guardando...
+                } @else {
+                  Guardar configuración
+                }
+              </button>
+            </div>
+          </fieldset>
+        </form>
+      } @else {
+        <div class="readonly-configuration">
+          <div>
+            <span>Temperatura</span>
+
+            <strong>
+              {{ formatValue(currentSummary.configuracion.temperatura_min_c) }}
+              –
+              {{ formatValue(currentSummary.configuracion.temperatura_max_c) }}
+              °C
+            </strong>
+          </div>
+
+          <div>
+            <span>Humedad</span>
+
+            <strong>
+              {{ formatValue(currentSummary.configuracion.humedad_min_pct) }}
+              –
+              {{ formatValue(currentSummary.configuracion.humedad_max_pct) }}
+              %
+            </strong>
+          </div>
+
+          <div>
+            <span> Tiempo sin comunicación </span>
+
+            <strong>
+              {{ currentSummary.configuracion.segundos_sin_comunicacion }}
+              segundos
+            </strong>
+          </div>
+
+          <p>Solo un administrador puede modificar estos umbrales.</p>
+        </div>
+      }
+    </section>
+  }
+</section>
+
+@if (selectedAlert(); as alert) {
+  <div class="modal-backdrop" role="presentation" (click)="closeAlert()">
+    <section
+      class="alert-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="iot-alert-modal-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="modal-header">
+        <div>
+          <p class="section-eyebrow">Alerta IoT #{{ alert.id_alerta_iot }}</p>
+
+          <h2 id="iot-alert-modal-title">
+            {{ alertTypeLabel(alert.tipo_alerta) }}
+          </h2>
+        </div>
+
+        <button
+          type="button"
+          class="modal-close"
+          aria-label="Cerrar detalle de alerta"
+          [disabled]="processingAlert()"
+          (click)="closeAlert()"
+        >
+          ×
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <div class="modal-badges">
+          <span [class]="'severity-badge ' + alertSeverityClass(alert.severidad)">
+            {{ alert.severidad }}
+          </span>
+
+          <span [class]="'alert-status ' + alertStatusClass(alert.estado)">
+            {{ alert.estado }}
+          </span>
+        </div>
+
+        <p class="modal-message">
+          {{ alert.mensaje }}
+        </p>
+
+        <dl class="alert-detail-grid">
+          <div>
+            <dt>Dispositivo</dt>
+
+            <dd>
+              {{ alert.codigo_dispositivo }}
+            </dd>
+          </div>
+
+          <div>
+            <dt>Fecha de generación</dt>
+
+            <dd>
+              {{ dateLabel(alert.fecha_generacion) }}
+            </dd>
+          </div>
+
+          <div>
+            <dt>Valor detectado</dt>
+
+            <dd>
+              {{ formatValue(alert.valor_detectado) }}
+            </dd>
+          </div>
+
+          <div>
+            <dt>Valor límite</dt>
+
+            <dd>
+              {{ formatValue(alert.valor_limite) }}
+            </dd>
+          </div>
+
+          @if (alert.fecha_atencion) {
+            <div>
+              <dt>Fecha de atención</dt>
+
+              <dd>
+                {{ dateLabel(alert.fecha_atencion) }}
+              </dd>
+            </div>
+          }
+
+          @if (alert.id_usuario_atencion) {
+            <div>
+              <dt>Usuario responsable</dt>
+
+              <dd>
+                ID
+                {{ alert.id_usuario_atencion }}
+              </dd>
+            </div>
+          }
+        </dl>
+
+        @if (alert.estado === 'PENDIENTE' && canAttendAlerts()) {
+          <form class="alert-form" [formGroup]="alertForm" (ngSubmit)="attendSelectedAlert()">
+            <label>
+              <span> Observación de atención </span>
+
+              <textarea
+                rows="5"
+                maxlength="500"
+                formControlName="observacion"
+                placeholder="Describa la revisión y la acción realizada..."
+              ></textarea>
+
+              <small>
+                {{ alertForm.controls.observacion.value.length }}
+                / 500 caracteres
+              </small>
+            </label>
+
+            @if (alertForm.controls.observacion.touched && alertForm.controls.observacion.invalid) {
+              <p class="field-error">La observación debe contener entre 5 y 500 caracteres.</p>
+            }
+
+            <div class="modal-actions">
+              <button
+                type="button"
+                class="secondary-button"
+                [disabled]="processingAlert()"
+                (click)="closeAlert()"
+              >
+                Cancelar
+              </button>
+
+              <button type="submit" class="primary-button" [disabled]="!canSubmitAlert()">
+                @if (processingAlert()) {
+                  Procesando...
+                } @else {
+                  Marcar como atendida
+                }
+              </button>
+            </div>
+          </form>
+        } @else {
+          <div class="attended-observation">
+            <span> Observación registrada </span>
+
+            <p>
+              {{ alert.observacion_atencion || 'No se registró una observación.' }}
+            </p>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="primary-button" (click)="closeAlert()">Cerrar</button>
+          </div>
+        }
+      </div>
+    </section>
+  </div>
+}

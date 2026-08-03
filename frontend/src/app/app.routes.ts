@@ -110,6 +110,15 @@ export const routes: Routes = [
     title: 'Reposición BPM | SIGEFER',
   },
   {
+    path: 'iot',
+    canActivate: [roleGuard],
+    data: {
+      roles: ['ADMINISTRADOR', 'BODEGUERO', 'GERENTE'],
+    },
+    loadComponent: () => import('./pages/iot/iot.component').then((module) => module.IoTComponent),
+    title: 'Monitoreo Ambiental IoT | SIGEFER',
+  },
+  {
     path: '**',
     redirectTo: '',
   },
